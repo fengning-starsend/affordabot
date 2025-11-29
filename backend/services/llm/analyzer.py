@@ -1,8 +1,11 @@
 import os
 import instructor
+import hashlib
+import json
 from openai import AsyncOpenAI
 from schemas.analysis import LegislationAnalysisResponse
 from typing import Optional
+from datetime import datetime
 
 class LegislationAnalyzer:
     def __init__(self):
@@ -11,7 +14,6 @@ class LegislationAnalyzer:
         api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
         
         if not api_key:
-            # Fallback for local testing without env vars if needed, but per user instructions we assume they exist
             print("WARNING: No API key found for LLM. Analysis will fail.")
 
         self.client = instructor.from_openai(
@@ -21,12 +23,30 @@ class LegislationAnalyzer:
             )
         )
         # Default to a cheap/free model for MVP, can be overridden
-        self.model = os.getenv("LLM_MODEL", "x-ai/grok-beta") 
+        self.model = os.getenv("LLM_MODEL", "x-ai/grok-beta")
+        
+        # In-memory cache (use Redis in production)
+        self.cache = {}
+
+    def _generate_cache_key(self, bill_text: str, bill_number: str, jurisdiction: str) -> str:
+        """Generate a hash key for caching based on bill content."""
+        content = f"{jurisdiction}:{bill_number}:{bill_text}"
+        return hashlib.sha256(content.encode()).hexdigest()
 
     async def analyze(self, bill_text: str, bill_number: str, jurisdiction: str) -> LegislationAnalysisResponse:
         """
         Analyze legislation text using LLM to extract cost of living impacts.
+        Uses caching to avoid re-analyzing the same bill.
         """
+        # Check cache first
+        cache_key = self._generate_cache_key(bill_text, bill_number, jurisdiction)
+        
+        if cache_key in self.cache:
+            print(f"✅ Cache hit for {bill_number}")
+            return self.cache[cache_key]
+        
+        print(f"🔄 Analyzing {bill_number} with LLM...")
+        
         system_prompt = """
         You are an expert policy analyst for AffordaBot, specializing in cost of living impacts for California families.
         Analyze the following legislation and identify ALL impacts on cost of living.
@@ -45,6 +65,8 @@ class LegislationAnalyzer:
            - Cite specific numbers/data points.
 
         3. If you cannot find sufficient evidence for an impact, DO NOT include it.
+        
+        4. Be conservative with cost estimates. It's better to underestimate than overestimate.
         """
 
         user_message = f"""
@@ -55,7 +77,7 @@ class LegislationAnalyzer:
         {bill_text}
         """
 
-        return await self.client.chat.completions.create(
+        response = await self.client.chat.completions.create(
             model=self.model,
             response_model=LegislationAnalysisResponse,
             messages=[
@@ -65,3 +87,19 @@ class LegislationAnalyzer:
             temperature=0.1, # Low temperature for factual extraction
             max_retries=3
         )
+        
+        # Add metadata
+        response.bill_number = bill_number
+        response.analysis_timestamp = datetime.now().isoformat()
+        response.model_used = self.model
+        
+        # Calculate total impact
+        if response.impacts:
+            response.total_impact_p50 = sum(impact.p50 for impact in response.impacts)
+        else:
+            response.total_impact_p50 = 0.0
+        
+        # Cache the response
+        self.cache[cache_key] = response
+        
+        return response

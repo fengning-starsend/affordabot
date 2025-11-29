@@ -16,6 +16,14 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 # Open States API (for California State Legislature)
 OPENSTATES_API_KEY=your-key-from-open.pluralpolicy.com
 
+# Error Tracking (Optional but Recommended)
+SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
+ENVIRONMENT=production  # or development
+
+# Email Notifications (Optional)
+SENDGRID_API_KEY=SG.xxxxx
+FROM_EMAIL=notifications@affordabot.ai
+
 # Optional: LLM Configuration
 LLM_MODEL=x-ai/grok-beta  # Default: grok-beta (free tier)
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1  # Default
