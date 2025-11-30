@@ -53,13 +53,22 @@ async def run_tests():
         except Exception as e:
             print(f" ❌ Failed: {e}")
 
-    # 4. Test LLM Connectivity
-    print("\n4️⃣  Testing LLM Connectivity...")
+    # 4. Test LLM Connectivity & Pipeline Health
+    print("\n4️⃣  Testing LLM Pipeline Health...")
+    try:
+        from backend.services.llm.pipeline import DualModelAnalyzer
+        analyzer = DualModelAnalyzer()
+        health = await analyzer.check_health()
+        print(f"   - Generation Model: {health['generation']}")
+        print(f"   - Review Model: {health['review']}")
+    except Exception as e:
+        print(f"   ❌ Health Check Failed: {e}")
+
     api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
     if api_key:
-        print(f"✅ API Key present ({api_key[:5]}...)")
+        print(f"   ✅ API Key present ({api_key[:5]}...)")
     else:
-        print("❌ API Key MISSING")
+        print("   ❌ API Key MISSING")
 
     print("\n✅ E2E Tests Complete!")
 

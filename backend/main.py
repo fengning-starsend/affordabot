@@ -87,6 +87,19 @@ async def health_check_jurisdictions():
         "jurisdictions": results
     }
 
+@app.get("/health/analysis")
+async def health_check_analysis():
+    """Check health of LLM pipeline (Generation & Review models)."""
+    from services.llm.pipeline import DualModelAnalyzer
+    analyzer = DualModelAnalyzer()
+    results = await analyzer.check_health()
+    
+    status = "healthy" if all(s == "healthy" for s in results.values()) else "degraded"
+    return {
+        "status": status,
+        "details": results
+    }
+
 async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
     """Background task to process a single jurisdiction."""
     logger.info(f"Starting scrape for {jurisdiction}")

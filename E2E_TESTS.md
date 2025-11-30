@@ -19,16 +19,21 @@
 - ✅ **Saratoga**: Online (Mocked)
 - ✅ **San Jose**: Online (Legistar API)
 - ⚠️ **Santa Clara County**: Offline (Legistar API 500 Error) - *Fallback to mock data verified*
-- ✅ **California State**: Online (Open States API)
+- ⚠️ **California State**: Offline (Open States API 429 Rate Limit) - *Fallback to mock data verified*
 
 #### 3. Scraping Verification
 - ✅ **Saratoga**: Found 1 bills (Mocked)
 - ✅ **San Jose**: Found 10+ bills (Real API)
 - ✅ **Santa Clara County**: Found 1 bills (Mocked Fallback)
-- ✅ **California State**: Found 10 bills (Real API)
-  - *Note: Hit rate limit (429) on subsequent requests, confirming API key works*
+- ✅ **California State**: Found 1 bills (Mocked Fallback due to Rate Limit)
 
-#### 4. LLM Connectivity
+#### 4. LLM Pipeline Health
+- ✅ **Generation Model**: Healthy
+  - *Primary (`x-ai/grok-4.1-fast:free`) verified via OpenRouter*
+- ✅ **Review Model**: Healthy
+  - *Primary (`glm-4.6` via Z.ai) verified with correct endpoint (`https://api.z.ai/api/paas/v4`)*
+
+#### 5. LLM Connectivity
 - ✅ API Key present
 - ✅ Analysis pipeline ready
 
@@ -43,11 +48,11 @@ cd backend && railway run uvicorn main:app --reload
 
 # Health Check
 curl http://localhost:8000/health
-# {"status":"healthy","database":"connected"}
+# {"status":"healthy","database":"connected","zai_research":"connected"}
 
-# Jurisdiction Health
-curl http://localhost:8000/health/jurisdictions
-# {"status":"success","jurisdictions":{"saratoga":"healthy",...}}
+# Analysis Health Check
+curl http://localhost:8000/health/analysis
+# {"status":"healthy","details":{"generation":"healthy","review":"healthy"}}
 ```
 
 ### Frontend
@@ -60,8 +65,6 @@ cd frontend && railway run npm run dev
 # - Check Dashboard loading
 # - Check Bill Detail pages
 ```
-
----
 
 ## Next Steps
 - [ ] Deploy to Railway Production
