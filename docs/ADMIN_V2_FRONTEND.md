@@ -199,21 +199,25 @@ data-[state=active]:bg-white/20
 - [x] Tabbed interface
 - [x] Overview tab with stats cards
 - [x] Placeholder tabs for all sections
+- [x] Scrape Manager component (full implementation)
+  - Jurisdiction selector
+  - Force re-scrape option
+  - Trigger button with loading states
+  - Active tasks tracking
+  - History table
+  - Alert notifications
 
 ### 🔄 In Progress
-- [ ] Scrape Manager component
 - [ ] Analysis Lab component
 - [ ] Model Registry component
 - [ ] Prompt Editor component
 - [ ] Health Monitor component
 
 ### ⏳ Pending
-- [ ] API integration with backend
+- [ ] API integration with backend (need API proxy)
 - [ ] Real-time updates with SWR
-- [ ] Form validation
-- [ ] Error handling
-- [ ] Loading states
-- [ ] Toast notifications
+- [ ] Toast notifications (Shadcn toast not available)
+- [ ] End-to-end testing
 
 ## File Structure
 

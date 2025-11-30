@@ -15,6 +15,9 @@ import {
     History
 } from 'lucide-react';
 import { ScrapeManager } from '@/components/admin/ScrapeManager';
+import { AnalysisLab } from '@/components/admin/AnalysisLab';
+import { ModelRegistry } from '@/components/admin/ModelRegistry';
+import { PromptEditor } from '@/components/admin/PromptEditor';
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
@@ -123,56 +126,17 @@ export default function AdminDashboard() {
 
                 {/* Analysis Tab */}
                 <TabsContent value="analysis" className="space-y-6">
-                    <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                        <CardHeader>
-                            <CardTitle className="text-white">Analysis Pipeline</CardTitle>
-                            <CardDescription className="text-slate-300">
-                                Run research, generation, and review steps
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center py-8 text-slate-400">
-                                <Zap className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                <p>Analysis interface coming soon</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <AnalysisLab />
                 </TabsContent>
 
                 {/* Models Tab */}
                 <TabsContent value="models" className="space-y-6">
-                    <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                        <CardHeader>
-                            <CardTitle className="text-white">Model Configuration</CardTitle>
-                            <CardDescription className="text-slate-300">
-                                Manage LLM models and priorities
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center py-8 text-slate-400">
-                                <Settings className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                <p>Model configuration interface coming soon</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <ModelRegistry />
                 </TabsContent>
 
                 {/* Prompts Tab */}
                 <TabsContent value="prompts" className="space-y-6">
-                    <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                        <CardHeader>
-                            <CardTitle className="text-white">System Prompts</CardTitle>
-                            <CardDescription className="text-slate-300">
-                                Edit and version control system prompts
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center py-8 text-slate-400">
-                                <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                <p>Prompt editor coming soon</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <PromptEditor />
                 </TabsContent>
             </Tabs>
         </div>
