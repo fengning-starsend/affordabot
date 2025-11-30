@@ -1,0 +1,12 @@
+{
+    "name": "affordabot-monorepo",
+    "private": true,
+    "workspaces": [
+        "frontend"
+    ],
+    "scripts": {
+        "build": "npm run build --workspace=frontend",
+        "start": "npm start --workspace=frontend"
+    },
+    "packageManager": "npm@10.0.0"
+}
