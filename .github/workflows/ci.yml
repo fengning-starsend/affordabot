@@ -5,94 +5,98 @@ on:
     branches: [main, master]
   push:
     branches: [main, master]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Stack configuration (set during bootstrap)
-env:
-  BACKEND_FRAMEWORK: "[0;34mℹ[0m  Detecting project stack..."
-  FRONTEND_FRAMEWORK: "none"
-
 jobs:
-  lint:
-    name: Lint
+  frontend-lint-and-build:
+    name: Frontend Lint & Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Backend linting
-      - name: Set up Python
-        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
-        uses: actions/setup-python@v5
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          python-version: '3.11'
+          version: 9
 
-      - name: Install Python dependencies
-        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
-        run: |
-          pip install ruff black mypy
-          pip install -r requirements.txt
-
-      - name: Run Python linters
-        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
-        run: |
-          ruff check .
-          black --check .
-
-      # Frontend linting
-      - name: Set up Node.js
-        if: env.FRONTEND_FRAMEWORK != 'none'
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
-      - name: Install Node dependencies
-        if: env.FRONTEND_FRAMEWORK != 'none'
-        run: npm ci
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Run ESLint
-        if: env.FRONTEND_FRAMEWORK != 'none'
-        run: npm run lint
+      - name: Build frontend
+        run: cd frontend && pnpm build
 
-  test:
-    name: Test
+  frontend-e2e:
+    name: Frontend E2E Tests
+    runs-on: ubuntu-latest
+    needs: frontend-lint-and-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: cd frontend && pnpm exec playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: cd frontend && pnpm test
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 30
+
+  backend-tests:
+    name: Backend Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Backend tests
       - name: Set up Python
-        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install Python dependencies
-        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
+      - name: Install Poetry
         run: |
-          pip install pytest pytest-cov
-          pip install -r requirements.txt
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Run Python tests
-        if: env.BACKEND_FRAMEWORK == 'fastapi' || env.BACKEND_FRAMEWORK == 'django' || env.BACKEND_FRAMEWORK == 'flask'
-        run: pytest --cov --cov-report=xml
+      - name: Install dependencies
+        run: |
+          cd backend
+          poetry install --no-interaction
 
-      # Frontend tests
-      - name: Set up Node.js
-        if: env.FRONTEND_FRAMEWORK != 'none'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Node dependencies
-        if: env.FRONTEND_FRAMEWORK != 'none'
-        run: npm ci
-
-      - name: Run frontend tests
-        if: env.FRONTEND_FRAMEWORK != 'none'
-        run: npm test
+      - name: Run backend tests
+        run: |
+          cd backend
+          poetry run pytest --verbose
 
   beads-validation:
     name: Beads Validation
