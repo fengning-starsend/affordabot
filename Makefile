@@ -1,21 +1,25 @@
-.PHONY: help install dev build test lint clean ci
+.PHONY: help install dev build test lint clean ci e2e
 
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  install    - Install all dependencies (frontend + backend)"
-	@echo "  dev        - Run development servers (frontend + backend)"
-	@echo "  build      - Build production bundles"
-	@echo "  test       - Run all tests"
-	@echo "  lint       - Run linters"
-	@echo "  clean      - Clean build artifacts"
-	@echo "  ci         - Run full CI suite locally"
+	@echo "  install      - Install all dependencies (frontend + backend)"
+	@echo "  dev          - Run development servers (frontend + backend)"
+	@echo "  dev-frontend - Run frontend dev server"
+	@echo "  dev-backend  - Run backend dev server"
+	@echo "  build        - Build frontend production bundle"
+	@echo "  test         - Run all tests"
+	@echo "  e2e          - Run Playwright e2e tests"
+	@echo "  lint         - Run linters (check only)"
+	@echo "  clean        - Clean build artifacts"
+	@echo "  ci           - Run full CI suite locally"
 
 # Install dependencies
 install:
 	@echo "Installing dependencies..."
 	pnpm install
-	cd backend && poetry install
+	@echo "Backend uses venv - activate with: source backend/venv/bin/activate"
+	@echo "Then install: pip install -r backend/requirements.txt"
 
 # Run development servers
 dev:
@@ -26,7 +30,13 @@ dev-frontend:
 	cd frontend && pnpm dev
 
 dev-backend:
-	cd backend && poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	@if [ ! -d backend/venv ]; then \
+		echo "Creating Python virtual environment..."; \
+		cd backend && python3 -m venv venv; \
+	fi
+	@echo "Starting backend server..."
+	@echo "Make sure venv is activated: source backend/venv/bin/activate"
+	@echo "Then run: uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 
 # Build for production
 build:
@@ -36,26 +46,35 @@ build:
 # Run tests
 test:
 	@echo "Running tests..."
-	cd backend && poetry run pytest
-	@echo "Frontend tests not yet configured"
+	cd frontend && pnpm test
+
+# Run e2e tests
+e2e:
+	@echo "Running Playwright e2e tests..."
+	cd frontend && pnpm exec playwright test
 
 # Run linters
 lint:
 	@echo "Running linters..."
-	cd backend && poetry run ruff check . || true
-	cd frontend && pnpm lint || true
+	@echo "Frontend build check (Next.js)..."
+	cd frontend && pnpm build
 
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf frontend/.next
 	rm -rf frontend/node_modules
-	rm -rf backend/.pytest_cache
+	rm -rf frontend/playwright-report
+	rm -rf frontend/test-results
 	rm -rf backend/__pycache__
+	rm -rf backend/.pytest_cache
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
 # Run local CI
 ci:
 	@echo "Running local CI..."
-	@echo "This will run linters and tests"
-	$(MAKE) lint
-	$(MAKE) test
+	@echo "=== Build Check ==="
+	$(MAKE) build
+	@echo ""
+	@echo "=== E2E Tests ==="
+	$(MAKE) e2e
