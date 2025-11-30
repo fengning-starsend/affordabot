@@ -1,5 +1,8 @@
 [build]
 builder = "RAILPACK"
+# Copy root lockfile for monorepo workspace, then install and build
+buildCommand = "cp ../pnpm-lock.yaml . && pnpm install && pnpm build"
+watchPatterns = ["frontend/**/*", "pnpm-lock.yaml"]
 
 [deploy]
 startCommand = "pnpm start"
