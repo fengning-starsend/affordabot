@@ -63,9 +63,14 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint for monitoring."""
+    # Check Z.ai health
+    from services.research.zai import ZaiResearchService
+    zai_health = await ZaiResearchService().check_health()
+
     return {
         "status": "healthy",
-        "database": "connected" if db.client else "disconnected"
+        "database": "connected" if db.client else "disconnected",
+        "zai_research": "connected" if zai_health else "disconnected"
     }
 
 @app.get("/health/jurisdictions")
@@ -87,7 +92,9 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
     logger.info(f"Starting scrape for {jurisdiction}")
     
     scraper = scraper_class()
-    analyzer = LegislationAnalyzer()
+    # Use new DualModelAnalyzer
+    from services.llm.pipeline import DualModelAnalyzer
+    analyzer = DualModelAnalyzer()
     
     try:
         # 1. Scrape legislation
@@ -121,7 +128,7 @@ async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
                     }
                 ) if jurisdiction_id else None
                 
-                # Analyze with LLM
+                # Analyze with Dual Model Pipeline (Research + Gen + Review)
                 analysis = await analyzer.analyze(
                     bill_text=bill.text,
                     bill_number=bill.bill_number,
