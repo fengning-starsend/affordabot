@@ -1,12 +1,14 @@
 {
     "name": "affordabot-monorepo",
     "private": true,
-    "workspaces": [
-        "frontend"
-    ],
     "scripts": {
-        "build": "npm run build --workspace=frontend",
-        "start": "npm start --workspace=frontend"
+        "dev": "turbo run dev",
+        "build": "turbo run build",
+        "start": "turbo run start",
+        "lint": "turbo run lint"
     },
-    "packageManager": "npm@10.0.0"
+    "devDependencies": {
+        "turbo": "^2.3.0"
+    },
+    "packageManager": "pnpm@9.1.0"
 }
