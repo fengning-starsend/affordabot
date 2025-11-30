@@ -2,7 +2,7 @@
 # Individual services have their own railway.toml files
 
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 
 [deploy]
 restartPolicyType = "ON_FAILURE"
