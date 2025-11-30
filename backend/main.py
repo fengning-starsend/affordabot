@@ -68,6 +68,20 @@ async def health_check():
         "database": "connected" if db.client else "disconnected"
     }
 
+@app.get("/health/jurisdictions")
+async def health_check_jurisdictions():
+    """Check health of all jurisdiction scrapers."""
+    results = {}
+    for jurisdiction, (scraper_class, _) in SCRAPERS.items():
+        scraper = scraper_class()
+        is_healthy = await scraper.check_health()
+        results[jurisdiction] = "healthy" if is_healthy else "unhealthy"
+    
+    return {
+        "status": "success",
+        "jurisdictions": results
+    }
+
 async def process_jurisdiction(jurisdiction: str, scraper_class, jur_type: str):
     """Background task to process a single jurisdiction."""
     logger.info(f"Starting scrape for {jurisdiction}")

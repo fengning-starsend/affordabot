@@ -9,6 +9,21 @@ class CaliforniaStateScraper(BaseScraper):
         super().__init__("State of California")
         self.api_key = os.getenv("OPENSTATES_API_KEY")
         self.base_url = "https://v3.openstates.org"
+
+    async def check_health(self) -> bool:
+        """Check if Open States API is accessible."""
+        if not self.api_key:
+            return False
+        
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            try:
+                response = await client.get(
+                    f"{self.base_url}/jurisdictions",
+                    headers={"X-API-KEY": self.api_key}
+                )
+                return response.status_code == 200
+            except Exception:
+                return False
     
     async def scrape(self) -> List[ScrapedBill]:
         """

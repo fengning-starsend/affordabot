@@ -7,6 +7,15 @@ class SanJoseScraper(BaseScraper):
     def __init__(self):
         super().__init__("City of San Jose")
         self.base_url = "https://webapi.legistar.com/v1/sanjose"
+
+    async def check_health(self) -> bool:
+        """Check if Legistar API is accessible."""
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            try:
+                response = await client.get(f"{self.base_url}/matters", params={"$top": 1})
+                return response.status_code == 200
+            except Exception:
+                return False
     
     async def scrape(self) -> List[ScrapedBill]:
         """

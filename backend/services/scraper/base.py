@@ -22,3 +22,10 @@ class BaseScraper(ABC):
         Returns a list of ScrapedBill objects.
         """
         pass
+
+    async def check_health(self) -> bool:
+        """
+        Check if the jurisdiction's source is accessible.
+        Default implementation returns True. Override for real checks.
+        """
+        return True

@@ -8,10 +8,20 @@ class SantaClaraCountyScraper(BaseScraper):
         super().__init__("County of Santa Clara")
         # Try common Legistar client names
         self.possible_urls = [
-            "https://webapi.legistar.com/v1/santaclara",
-            "https://webapi.legistar.com/v1/santaclaracounty",
             "https://webapi.legistar.com/v1/sccgov"
         ]
+
+    async def check_health(self) -> bool:
+        """Check if any Legistar API URL is accessible."""
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            for base_url in self.possible_urls:
+                try:
+                    response = await client.get(f"{base_url}/matters", params={"$top": 1})
+                    if response.status_code == 200:
+                        return True
+                except Exception:
+                    continue
+            return False
     
     async def scrape(self) -> List[ScrapedBill]:
         """
