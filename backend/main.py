@@ -46,7 +46,7 @@ from routers import admin
 app.include_router(admin.router)
 
 # Add rate limiting middleware (60 requests/minute per IP)
-app.middleware("http")(RateLimiter(requests_per_minute=60))
+# app.middleware("http")(RateLimiter(requests_per_minute=60))
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
