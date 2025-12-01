@@ -6,7 +6,7 @@ watchPatterns = ["frontend/**/*", "pnpm-lock.yaml"]
 
 [deploy]
 startCommand = "pnpm start"
-healthcheckPath = "/favicon.ico"
+healthcheckPath = "/next.svg"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
