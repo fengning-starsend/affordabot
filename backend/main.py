@@ -15,21 +15,22 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 # Initialize Sentry
-if os.getenv("SENTRY_DSN"):
-    sentry_sdk.init(
-        dsn=os.getenv("SENTRY_DSN"),
-        integrations=[
-            FastApiIntegration(),
-            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
-        ],
-        traces_sample_rate=0.1,
-        environment=os.getenv("ENVIRONMENT", "development")
-    )
-    logger = logging.getLogger(__name__)
-    logger.info("Sentry initialized")
-else:
-    logger = logging.getLogger(__name__)
-    logger.warning("Sentry DSN not set. Error tracking disabled.")
+# if os.getenv("SENTRY_DSN"):
+#     sentry_sdk.init(
+#         dsn=os.getenv("SENTRY_DSN"),
+#         integrations=[
+#             FastApiIntegration(),
+#             LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
+#         ],
+#         traces_sample_rate=0.1,
+#         environment=os.getenv("ENVIRONMENT", "development")
+#     )
+#     logger = logging.getLogger(__name__)
+#     logger.info("Sentry initialized")
+# else:
+#     logger = logging.getLogger(__name__)
+#     logger.warning("Sentry DSN not set. Error tracking disabled.")
+logger = logging.getLogger(__name__)
 
 # Configure logging
 logging.basicConfig(
