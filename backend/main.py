@@ -48,6 +48,19 @@ app.include_router(admin.router)
 # Add rate limiting middleware (60 requests/minute per IP)
 app.middleware("http")(RateLimiter(requests_per_minute=60))
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    error_msg = f"{str(exc)}\n{traceback.format_exc()}"
+    logger.error(f"Global exception: {error_msg}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "traceback": traceback.format_exc()},
+    )
+
 # Jurisdiction mapping
 SCRAPERS = {
     "saratoga": (SaratogaScraper, "city"),
