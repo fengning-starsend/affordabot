@@ -19,7 +19,11 @@ export async function GET() {
     } catch (error) {
         console.error('API route error:', error);
         return NextResponse.json(
-            { error: 'Internal server error' },
+            {
+                error: 'Internal server error',
+                details: error instanceof Error ? error.message : String(error),
+                backend_url: BACKEND_URL
+            },
             { status: 500 }
         );
     }
