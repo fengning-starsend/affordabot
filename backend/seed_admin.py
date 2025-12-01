@@ -43,14 +43,18 @@ def seed_data():
         {
             'prompt_type': 'generation',
             'system_prompt': 'You are an expert legislative analyst. Analyze the following bill text and identify potential impacts on the cost of living for families in the specified jurisdiction. Focus on housing, utilities, transportation, and taxes. Provide a confidence score for each impact.',
-            'updated_at': 'now()',
-            'updated_by': 'system'
+            'version': 1,
+            'description': 'Default generation prompt',
+            'is_active': True,
+            'created_by': 'system'
         },
         {
             'prompt_type': 'review',
             'system_prompt': 'You are a senior policy reviewer. Review the following impact analysis for accuracy, bias, and evidence. Flag any speculative claims that lack citation. Adjust confidence scores based on the strength of the evidence provided.',
-            'updated_at': 'now()',
-            'updated_by': 'system'
+            'version': 1,
+            'description': 'Default review prompt',
+            'is_active': True,
+            'created_by': 'system'
         }
     ]
 
