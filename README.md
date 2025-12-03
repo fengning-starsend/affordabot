@@ -27,6 +27,7 @@ AffordaBot is a "Dependabot for government" - continuously monitoring new bills 
    ```bash
    git clone https://github.com/YOUR_USERNAME/affordabot.git
    cd affordabot
+   ./scripts/bootstrap.sh
    
    # Backend
    cd backend
