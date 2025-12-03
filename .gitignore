@@ -45,3 +45,6 @@ Thumbs.db
 # Misc
 *.html
 saratoga.html
+
+# Supabase
+supabase/supabase/.temp/
