@@ -94,3 +94,66 @@ This achieves:
 
 - `cea8bf3` - feat: Migrate to canonical ~/llm-common
 - `e5ddb90` - fix: Use relative path for llm-common (Railway compat)
+- `cb49b56` - chore: Remove packages/llm-common (preparing for submodule)
+- `c016648` - feat: Add llm-common as git submodule
+
+## ✅ Phase 1 Complete
+
+### What Works Now
+1. ✅ Canonical `~/llm-common` exists and is on GitHub
+2. ✅ Affordabot uses it via git submodule at `packages/llm-common`
+3. ✅ Inline `backend/llm_common/` removed (no duplication)
+4. ✅ Railway-compatible (submodule checked out during build)
+5. ✅ Shareable with prime-radiant-ai (same GitHub repo)
+
+### Phase 2: Import Migration
+
+**Status**: Ready to proceed
+
+**Tasks**:
+- [ ] Verify all imports still work after submodule
+- [ ] Test in Railway environment
+- [ ] Update prime-radiant-ai to use same submodule
+- [ ] Remove old `packages/llm-common` references (if any)
+
+### Phase 3: Testing & Cleanup
+
+**Tasks**:
+- [ ] Run tests to verify behavior unchanged
+- [ ] Test legislation analysis pipeline end-to-end
+- [ ] Test admin flows (model registry, prompts)
+- [ ] Verify Railway deployment succeeds
+- [ ] Document submodule workflow for team
+
+## Submodule Workflow
+
+**Updating llm-common**:
+```bash
+cd ~/llm-common
+# Make changes
+git add .
+git commit -m "feat: Update llm-common"
+git push origin master
+
+cd ~/affordabot
+git submodule update --remote packages/llm-common
+git add packages/llm-common
+git commit -m "chore: Update llm-common submodule"
+```
+
+**Cloning affordabot with submodules**:
+```bash
+git clone --recurse-submodules https://github.com/stars-end/affordabot.git
+# or
+git clone https://github.com/stars-end/affordabot.git
+cd affordabot
+git submodule update --init --recursive
+```
+
+## Next Steps
+
+1. Push feature branch and create PR
+2. Test Railway build with submodule
+3. Verify all imports work
+4. Update prime-radiant-ai to use same submodule
+5. Mark epic as complete
