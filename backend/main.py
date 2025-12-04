@@ -33,13 +33,24 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-app = FastAPI(title="AffordaBot API")
+app = FastAPI(title="Affordabot API") # Changed title
 db = SupabaseDB()
 email_service = EmailNotificationService()
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include admin router
-from routers import admin
+from routers import admin, sources, discovery # Modified import
 app.include_router(admin.router)
+app.include_router(sources.router) # Added router
+app.include_router(discovery.router) # Added router
 
 # Add rate limiting middleware (60 requests/minute per IP)
 # app.middleware("http")(RateLimiter(requests_per_minute=60))
