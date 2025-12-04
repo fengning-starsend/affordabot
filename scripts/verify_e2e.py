@@ -152,7 +152,7 @@ async def test_complete_pipeline():
     print("✅ Template Review Service: PASS")
     print("\n🎉 All components verified successfully!")
     print("\n📝 Next Steps:")
-    print("  1. Fix Railway environment (Z_AI_API_KEY, install deps)")
+    print("  1. Fix Railway environment (ZAI_API_KEY, install deps)")
     print("  2. Test with real Web Reader API")
     print("  3. Run end-to-end flow in Railway")
 

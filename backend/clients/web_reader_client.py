@@ -11,7 +11,7 @@ class WebReaderClient:
     """
     
     def __init__(self, api_key: Optional[str] = None, base_url: str = "https://api.z.ai"):
-        self.api_key = api_key or os.environ.get("Z_AI_API_KEY")
+        self.api_key = api_key or os.environ.get("ZAI_API_KEY")
         self.base_url = base_url.rstrip("/")
         
     async def fetch_content(self, url: str) -> Dict[str, Any]:
@@ -26,7 +26,7 @@ class WebReaderClient:
         """
         if not self.api_key:
             # Mock behavior for dev/test without API key
-            print(f"⚠️ No Z_AI_API_KEY found. Mocking Web Reader fetch for {url}")
+            print(f"⚠️ No ZAI_API_KEY found. Mocking Web Reader fetch for {url}")
             return {
                 "content": f"# Mock Content for {url}\n\nThis is mocked content because no API key was provided.",
                 "title": f"Mock Title for {url}",

@@ -18,7 +18,7 @@ async def review_templates_task():
     llm_client = LLMClient(provider="openai")
     # Assuming WebSearchClient needs api_key
     search_client = WebSearchClient(
-        api_key=os.environ.get('Z_AI_API_KEY', 'mock-key'),
+        api_key=os.environ.get('ZAI_API_KEY', 'mock-key'),
         supabase_client=supabase
     )
     
