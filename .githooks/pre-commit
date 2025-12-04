@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Lightweight warnings before committing.
+set -euo pipefail
+
+# Beads: Flush pending changes to JSONL before commit
+if command -v bd &> /dev/null && [ -d .beads ]; then
+  if ! bd sync --flush-only 2>/dev/null; then
+    echo "⚠️  bd sync --flush-only failed (run manually to diagnose)" >&2
+  else
+    # Stage JSONL files if modified
+    git add .beads/beads.jsonl 2>/dev/null || true
+    git add .beads/issues.jsonl 2>/dev/null || true
+  fi
+fi
+
+STAGED=$(git diff --cached --name-only)
+STATUS=$(git diff --cached --name-status)
+
+if echo "$STAGED" | grep -E '^\.command-proof/' >/dev/null 2>&1; then
+  echo "⚠️  You are committing .command-proof artifacts. Is this intentional?" >&2
+fi
+
+if echo "$STAGED" | grep -E '^\.github/workflows/' >/dev/null 2>&1; then
+  echo "⚠️  You are committing workflow changes. Prefer infra branches, not scenario branches." >&2
+fi
+
+# Block deletion of critical DX directories/files unless explicitly allowed
+if echo "$STATUS" | awk '$1=="D" {print $2}' | grep -E '^(scripts/cli/|scripts/git/install_hooks\.sh|\.githooks/?)' >/dev/null 2>&1; then
+  if [ "${ALLOW_DX_DIR_CHANGES:-}" != "1" ]; then
+    echo "❌ Deletion of critical DX assets detected (scripts/cli/, scripts/git/install_hooks.sh, or .githooks)." >&2
+    echo "   Set ALLOW_DX_DIR_CHANGES=1 to override, or restore via 'make dx-restore'." >&2
+    exit 3
+  else
+    echo "⚠️  ALLOW_DX_DIR_CHANGES=1 set — proceeding with deletion of critical DX assets" >&2
+  fi
+fi
+
+exit 0

@@ -1,0 +1,38 @@
+name: Slash Comment Detector
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  detect-raw-slash:
+    if: |
+      startsWith(github.event.comment.body, '/sync-i') ||
+      startsWith(github.event.comment.body, '/merge-i') ||
+      startsWith(github.event.comment.body, '/rescue-i') ||
+      startsWith(github.event.comment.body, '/pr-rescue-i')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Reply with correct OpenCode usage
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+          COMMENT: ${{ github.event.comment.body }}
+        run: |
+          cat > /tmp/reply.md <<'EOF'
+          ⚠️ These are custom OpenCode slash commands, not shell/Python commands.
+
+          Run them via OpenCode:
+          - ChatOps: `\`/oc run "<slash command>"\`` (example: `\`/oc run "/sync-i --force true"\``)
+          - Or type the slash command in the OpenCode Task input (chat), not in your terminal shell.
+
+          Local helpers (shell):
+          - `make slash-help` → quick usage
+          - `make branch-status` → status + next step
+          - `make guardrails-stamp` → write `.command-proof/guardrails.json`
+          EOF
+          gh api --method POST "repos/:owner/:repo/issues/$ISSUE/comments" --field body=@/tmp/reply.md
+

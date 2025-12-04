@@ -1,0 +1,185 @@
+name: Skill Drift Check
+
+# Weekly check for drift in static context skills
+# Creates GitHub issue if file listings are out of date
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight UTC
+  workflow_dispatch:      # Manual trigger
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-drift:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for static skills
+        id: check_skills
+        run: |
+          skill_dir=".claude/skills"
+
+          if [ ! -d "$skill_dir" ]; then
+            echo "No skills directory found"
+            echo "has_skills=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Find static context skills (exclude dynamic epic contexts)
+          static_skills=$(find "$skill_dir" -mindepth 1 -maxdepth 1 -type d -name "context-*" ! -name "context-epic-*" | wc -l)
+
+          echo "Found $static_skills static skill(s)"
+          echo "has_skills=true" >> $GITHUB_OUTPUT
+          echo "count=$static_skills" >> $GITHUB_OUTPUT
+
+      - name: Detect drift in static skills
+        if: steps.check_skills.outputs.has_skills == 'true'
+        id: detect_drift
+        run: |
+          drift_found=false
+          drift_details=""
+
+          # Check each static skill for drift
+          for skill_dir in .claude/skills/context-*; do
+            # Skip epic contexts
+            if [[ "$skill_dir" == *"context-epic-"* ]]; then
+              continue
+            fi
+
+            skill_name=$(basename "$skill_dir")
+            echo "Checking $skill_name..."
+
+            # Extract glob patterns from SKILL.md
+            if [ ! -f "$skill_dir/SKILL.md" ]; then
+              echo "  ⚠️  No SKILL.md found"
+              continue
+            fi
+
+            # Simple check: Extract file listings and compare with actual files
+            # This is a basic implementation - can be enhanced with proper YAML parsing
+
+            # Check if skill lists specific files (look for markdown file listings)
+            listed_files=$(grep -oP '(?<=`)[^`]+\.(py|ts|tsx|sql|sh|yml|yaml)(?=`)' "$skill_dir/SKILL.md" 2>/dev/null | sort || echo "")
+
+            if [ -z "$listed_files" ]; then
+              echo "  ℹ️  No file listings found (may use globs only)"
+              continue
+            fi
+
+            # Check if listed files exist
+            missing_files=""
+            while IFS= read -r file; do
+              if [ -n "$file" ] && [ ! -f "$file" ]; then
+                missing_files="$missing_files\n    - $file"
+              fi
+            done <<< "$listed_files"
+
+            if [ -n "$missing_files" ]; then
+              drift_found=true
+              drift_details="$drift_details\n\n### $skill_name\nMissing files:$missing_files"
+              echo "  ⚠️  Drift detected (missing files)"
+            else
+              echo "  ✅ No drift detected"
+            fi
+          done
+
+          if [ "$drift_found" = true ]; then
+            echo "drift_found=true" >> $GITHUB_OUTPUT
+            echo "drift_details<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$drift_details" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "drift_found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create issue if drift detected
+        if: steps.detect_drift.outputs.drift_found == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const driftDetails = ${{ toJSON(steps.detect_drift.outputs.drift_details) }};
+
+            const issueBody = [
+              '## Skill Drift Detected',
+              '',
+              'The weekly skill drift check has detected that some static context skills may be out of date.',
+              '',
+              driftDetails,
+              '',
+              '### Recommended Actions',
+              '',
+              '1. **Review drift**: Check if files were moved, renamed, or deleted',
+              '2. **Refresh skills**: Run `scripts/skill-refresh.sh <skill-name>` for affected skills',
+              '3. **Manual update**: Edit SKILL.md files directly if needed',
+              '4. **Commit changes**: Commit updated skill files',
+              '',
+              '### Commands',
+              '',
+              '```bash',
+              '# Refresh a specific skill',
+              'scripts/skill-refresh.sh context-plaid-integration',
+              '',
+              '# Or regenerate all static skills (if script exists)',
+              'scripts/skill-refresh-all.sh',
+              '```',
+              '',
+              '### Automation',
+              '',
+              'This issue was automatically created by the `skill-drift-check` workflow.',
+              '',
+              'Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+            ].join('\n');
+
+            // Check if there's already an open issue for skill drift
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'dx-maintenance,skill-drift',
+              state: 'open'
+            });
+
+            if (existingIssues.data.length > 0) {
+              // Update existing issue with new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssues.data[0].number,
+                body: `## Weekly Update: ${new Date().toISOString().split('T')[0]}\n\n${issueBody}`
+              });
+
+              console.log(`Updated existing issue #${existingIssues.data[0].number}`);
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Skill Drift Detected - ${new Date().toISOString().split('T')[0]}`,
+                body: issueBody,
+                labels: ['dx-maintenance', 'skill-drift', 'automated']
+              });
+
+              console.log('Created new skill drift issue');
+            }
+
+      - name: Summary
+        if: always()
+        run: |
+          echo ""
+          echo "========================================="
+          echo "Skill Drift Check Summary"
+          echo "========================================="
+          echo "Static skills checked: ${{ steps.check_skills.outputs.count }}"
+          echo "Drift detected: ${{ steps.detect_drift.outputs.drift_found }}"
+          echo ""
+
+          if [ "${{ steps.detect_drift.outputs.drift_found }}" == "true" ]; then
+            echo "⚠️  Drift detected - GitHub issue created/updated"
+          else
+            echo "✅ No drift detected - all skills up to date"
+          fi

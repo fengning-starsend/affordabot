@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Beads: Import JSONL changes after pull/merge
+set -euo pipefail
+
+# Check if bd is available
+if ! command -v bd &> /dev/null; then
+  exit 0
+fi
+
+# Check if this is a beads workspace
+if [ ! -d .beads ]; then
+  exit 0
+fi
+
+# Check if any JSONL files exist
+if ! ls .beads/*.jsonl &> /dev/null; then
+  exit 0
+fi
+
+# Import JSONL changes (no flush, no git operations)
+if ! bd sync --import-only 2>/dev/null; then
+  echo "⚠️  bd sync --import-only failed after merge (run manually to sync database)" >&2
+fi
+
+exit 0

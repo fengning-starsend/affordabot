@@ -1,14 +1,18 @@
 fastapi
 uvicorn
-sqlalchemy
 pydantic
 python-dotenv
+supabase
+aiohttp
+litellm
+prefect
 supabase
 instructor
 openai
 beautifulsoup4
 httpx
 pypdf
+sqlalchemy
 pyopenstates
 python-dateutil
 six
@@ -17,3 +21,4 @@ sendgrid
 litellm>=1.0.0
 eval_type_backport
 -e ../packages/llm-common
+prefect>=2.0.0
