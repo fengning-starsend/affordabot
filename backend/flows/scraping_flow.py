@@ -20,23 +20,18 @@ def fetch_active_sources():
 def run_spider(source):
     logger = get_run_logger()
     source_id = source["id"]
-    jurisdiction = source["jurisdiction_id"]
-    source_type = source["type"]
-    url = source["url"]
+    handler = source.get("handler")
+    source_method = source.get("source_method", "scrape")
 
-    # Map source to spider
-    spider_name = None
-    if jurisdiction == "san_jose_ca":
-        if source_type == "meeting":
-            spider_name = "sanjose_meetings"
-        elif source_type == "code":
-            spider_name = "sanjose_municode"
+    if not handler:
+        logger.error(f"No handler specified for source {source_id}")
+        return
     
-    if not spider_name:
-        logger.warning(f"No spider found for {jurisdiction} {source_type}")
+    if source_method != "scrape":
+        logger.warning(f"Source {source_id} has method '{source_method}', skipping spider execution")
         return
 
-    logger.info(f"Starting spider {spider_name} for source {source_id}")
+    logger.info(f"Starting spider {handler} for source {source_id}")
     
     # Run scrapy as a subprocess
     # We assume we are in the project root, so we need to point to backend/affordabot_scraper
@@ -45,7 +40,7 @@ def run_spider(source):
     
     try:
         result = subprocess.run(
-            [scrapy_bin, "crawl", spider_name, "-a", f"source_id={source_id}"],
+            [scrapy_bin, "crawl", handler, "-a", f"source_id={source_id}"],
             cwd=cwd,
             capture_output=True,
             text=True,

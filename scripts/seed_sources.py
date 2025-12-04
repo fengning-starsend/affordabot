@@ -15,13 +15,17 @@ sources = [
         "jurisdiction_id": "san_jose_ca",
         "url": "https://sanjose.legistar.com/Calendar.aspx",
         "type": "meeting",
-        "status": "active"
+        "status": "active",
+        "source_method": "scrape",
+        "handler": "sanjose_meetings"
     },
     {
         "jurisdiction_id": "san_jose_ca",
         "url": "https://library.municode.com/ca/san_jose/codes/code_of_ordinances",
         "type": "code",
-        "status": "active"
+        "status": "active",
+        "source_method": "scrape",
+        "handler": "sanjose_municode"
     }
 ]
 
