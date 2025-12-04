@@ -46,15 +46,25 @@ This document details the technical implementation for the "Full City Infrastruc
 | `created_at` | Timestamp | |
 
 ## 4. Integration with `llm-common` (RAG Backend)
-**Constraint**: `llm-common` is a shared dependency managed by another agent. We consume it "as-is".
+**Constraint**: `llm-common` is a shared dependency. We consume its interfaces but implement the pipeline locally in `affordabot`.
 
-- **Ingestion Workflow** (in `affordabot-rdx`):
-    1.  **Read**: Fetch content from `raw_scrapes`.
-    2.  **Process**: Clean and chunk text (Affordabot logic).
-    3.  **Embed**: Use `llm-common.LLMClient` to generate embeddings (e.g., `text-embedding-3-small`).
-    4.  **Store**: Use `llm-common.SupabasePgVectorBackend` to save documents.
-        -   **Mapping**: Map Affordabot-specific metadata (jurisdiction, source type) into the backend's generic `metadata` JSON field.
-        -   **No Changes**: We do not modify `llm-common`. If we need new backend features, we request them from the `llm-common` agent.
+- **Ingestion Workflow** (in `affordabot`):
+    1.  **Read**: Fetch unprocessed content from `raw_scrapes`.
+    2.  **Process**: Clean and chunk text (Affordabot `IngestionService`).
+    3.  **Embed**: Use `llm-common.LLMClient` (via LiteLLM) to generate embeddings (e.g., `text-embedding-3-small`).
+    4.  **Store**: Use `llm-common.retrieval.SupabasePgVectorBackend` interface to save documents to local `documents` table.
+        -   **Schema**: Local `documents` table with `vector(1536)` column.
+        -   **Metadata**: Map Affordabot-specific metadata (jurisdiction, source type) into the generic `metadata` JSON field.
+
+### `documents` Table
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | PK |
+| `document_id` | UUID | Grouping ID for chunks |
+| `content` | Text | Chunk text |
+| `embedding` | Vector(1536) | OpenAI text-embedding-3-small |
+| `metadata` | JSONB | Source metadata |
+| `chunk_index` | Integer | Order within document |
 
 ## 5. Source Method Differentiation
 

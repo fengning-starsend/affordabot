@@ -1,0 +1,111 @@
+name: PR Context Update
+
+# Auto-update area context skills when PRs are merged
+#
+# TRIGGERS:
+#   - Pull request closed (merged)
+#   - Manual workflow dispatch (for testing)
+#
+# INTEGRATION:
+#   - Uses _context-update.yml reusable workflow
+#   - Contributes to bd-a2o (reusable workflow pattern)
+#   - Contributes to bd-ek3 (Claude Code GitHub Actions docs)
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+      - main
+
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to analyze (optional, for testing)'
+        required: false
+        type: number
+      dry_run:
+        description: 'Dry run mode (analyze only, no updates)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-merged:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    outputs:
+      should_proceed: ${{ steps.check.outputs.should_proceed }}
+      base_ref: ${{ steps.refs.outputs.base_ref }}
+      head_ref: ${{ steps.refs.outputs.head_ref }}
+    steps:
+      - name: Check if PR was merged
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "should_proceed=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_proceed=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_proceed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine refs
+        id: refs
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base_ref=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+            echo "head_ref=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.pr_number }}" ]; then
+            echo "base_ref=origin/master" >> $GITHUB_OUTPUT
+            echo "head_ref=origin/pull/${{ inputs.pr_number }}/head" >> $GITHUB_OUTPUT
+          else
+            echo "base_ref=origin/master" >> $GITHUB_OUTPUT
+            echo "head_ref=origin/${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+  update-contexts:
+    needs: check-merged
+    if: needs.check-merged.outputs.should_proceed == 'true'
+    uses: ./.github/workflows/_context-update.yml
+    with:
+      base_ref: ${{ needs.check-merged.outputs.base_ref }}
+      head_ref: ${{ needs.check-merged.outputs.head_ref }}
+      dry_run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+    secrets:
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+
+  summary:
+    needs: [check-merged, update-contexts]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Workflow summary
+        run: |
+          echo "## PR Context Update Workflow" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Merged:** ${{ github.event.pull_request.merged }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Base ref:** ${{ needs.check-merged.outputs.base_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Head ref:** ${{ needs.check-merged.outputs.head_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.update-contexts.result }}" = "success" ]; then
+            echo "**Status:** ✅ Context update completed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.update-contexts.result }}" = "skipped" ]; then
+            echo "**Status:** ⏭️ Context update skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status:** ❌ Context update failed" >> $GITHUB_STEP_SUMMARY
+          fi

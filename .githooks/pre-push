@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Guardrail: hard block pushes to the default branch (master) and enforce branch hygiene.
+
+default_branch=$(git remote show origin 2>/dev/null | sed -n 's/^\s*HEAD branch: //p')
+if [ -z "$default_branch" ]; then default_branch="master"; fi
+
+# block pushes to default branch
+blocked=0
+while read local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/$default_branch)
+      echo "❌ Pushing directly to $default_branch is blocked." >&2
+      echo "   Open a PR instead. Agent will handle sync and merge via Skills." >&2
+      blocked=1
+      ;;
+  esac
+done
+if [ $blocked -ne 0 ]; then exit 1; fi
+
+# Soft warning on non-standard branch names
+branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+case "$branch" in
+  release-*|feature-*|fix-*|hotfix-*)
+    ;;
+  *)
+    if [ -n "$branch" ]; then
+      echo "⚠️  Non-standard branch name: $branch" >&2
+      echo "    Expected: feature-<KEY> | fix-<topic> | hotfix-<topic> | release-<date>" >&2
+    fi
+    ;;
+esac
+
+# V3: No receipt checks needed - Beads MCP is single source of truth
+
+# Check for critical DX assets
+missing=()
+for p in scripts/cli .githooks scripts/git/install_hooks.sh; do
+  if [ ! -e "$p" ]; then
+    missing+=("$p")
+  fi
+done
+
+if [ ${#missing[@]} -gt 0 ]; then
+  if [ "${ALLOW_DX_DIR_CHANGES:-}" != "1" ]; then
+    echo "❌ Critical DX assets missing: ${missing[*]}" >&2
+    echo "   Run 'make dx-verify' and 'make dx-restore' (or set ALLOW_DX_DIR_CHANGES=1 to override)." >&2
+    exit 4
+  else
+    echo "⚠️  ALLOW_DX_DIR_CHANGES=1 set — proceeding despite missing DX assets: ${missing[*]}" >&2
+  fi
+fi
+exit 0

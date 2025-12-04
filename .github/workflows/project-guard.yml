@@ -1,0 +1,14 @@
+name: Project Guard (manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Info
+        run: |
+          echo "Project Guard is disabled for PRs in MVP. Use native Project workflows (UI)."

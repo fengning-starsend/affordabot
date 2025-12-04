@@ -1,0 +1,66 @@
+#!/bin/sh
+# Guardrail: require Feature-Key, enforce Beads format for large changes (>100 LOC)
+
+MSG_FILE="$1"
+
+# Allow merge management and release commits to bypass
+if grep -qi '^Merge-I:' "$MSG_FILE"; then
+  exit 0
+fi
+if grep -qi '^Release:' "$MSG_FILE"; then
+  exit 0
+fi
+
+# Allow Beads sync auto-commits to bypass (metadata tracking, not feature work)
+if grep -qi 'beads.* sync\|sync.*beads\|update.*issues\.jsonl' "$MSG_FILE"; then
+  exit 0
+fi
+
+# Check Feature-Key exists
+if ! grep -qi '^Feature-Key:' "$MSG_FILE"; then
+  echo "⛔ Missing 'Feature-Key:' trailer in commit message." >&2
+  echo "   Add a line like: Feature-Key: bd-xyz" >&2
+  echo "   Create Beads issue first: bd create \"Feature title\" --type feature" >&2
+  exit 1
+fi
+
+# Extract Feature-Key value
+FEATURE_KEY=$(grep -i '^Feature-Key:' "$MSG_FILE" | head -1 | sed 's/Feature-Key:\s*//' | xargs)
+
+# Count lines changed (additions + deletions)
+LINES_CHANGED=$(git diff --cached --numstat 2>/dev/null | awk '{added+=$1; deleted+=$2} END {print added+deleted}')
+
+# If we can't count (e.g., initial commit), default to 0
+if [ -z "$LINES_CHANGED" ]; then
+  LINES_CHANGED=0
+fi
+
+# Check if using Beads format (bd-xyz)
+if ! echo "$FEATURE_KEY" | grep -qE '^bd-[a-z0-9]+$'; then
+  if [ "$LINES_CHANGED" -gt 100 ]; then
+    # HARD BLOCK for large changes
+    echo "⛔ Large changes (${LINES_CHANGED} LOC) MUST use Beads tracking" >&2
+    echo "" >&2
+    echo "   Current Feature-Key: $FEATURE_KEY" >&2
+    echo "   Required format: bd-xyz" >&2
+    echo "" >&2
+    echo "   Create Beads issue:" >&2
+    echo "   bd create \"Your feature title\" --type feature --priority 1" >&2
+    echo "" >&2
+    echo "   Then update commit message with the Beads ID." >&2
+    exit 1
+  else
+    # SOFT WARN for small changes
+    echo "⚠️  Warning: Feature-Key not using Beads format (${LINES_CHANGED} LOC changed)" >&2
+    echo "" >&2
+    echo "   Current: $FEATURE_KEY" >&2
+    echo "   Recommended: bd-xyz (Beads issue ID)" >&2
+    echo "" >&2
+    echo "   For better tracking, create Beads issue:" >&2
+    echo "   bd create \"Your feature title\" --type feature" >&2
+    echo "" >&2
+    echo "   Allowing commit to proceed (under 100 LOC threshold)." >&2
+  fi
+fi
+
+exit 0
