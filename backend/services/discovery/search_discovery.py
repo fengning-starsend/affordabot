@@ -10,9 +10,10 @@ class SearchDiscoveryService:
     """
     Discovery service that uses Z.ai Chat (with Web Search tool) to find content URLs.
     
-    Implementation: Uses raw HTTP requests to Z.ai Chat API to extract structured 
-    `web_search` data (MCP-style) which provides clean Title, URL, and Snippet 
-    without needing to parse Markdown citations.
+    Implementation: Uses direct HTTP requests to Z.ai Chat API to extract 
+    native structured `web_search` data ("Z.ai Structured Search").
+    This provides reliable Title, URL, and Snippets directly from the search index, 
+    bypassing LLM markdown generation.
     """
 
     def __init__(self, api_key: Optional[str] = None):
@@ -23,10 +24,10 @@ class SearchDiscoveryService:
     
     async def find_urls(self, query: str, count: int = 5) -> List[WebSearchResult]:
         """
-        Search for content using Z.ai Chat + Structured Web Search Tool.
+        Search for content using Z.ai Structured Search.
         Falls back to Playwright if that fails.
         
-        Sanitization: The underlying `search-prime` engine often returns 0 results
+        Sanitization: The underlying search engine often returns 0 results
         for queries with `site:` operators. This method attempts to convert strict 
         boolean logic into natural language or keyword constraints to ensure results.
         """
@@ -36,21 +37,21 @@ class SearchDiscoveryService:
             print(f"🔄 Optimized Query: '{query}' -> '{optimized_query}'")
             
         try:
-            results = await self._search_zai_raw(optimized_query, count)
+            results = await self._search_zai_structured(optimized_query, count)
             if results:
-                print(f"✅ Z.ai Chat (Structured) Discovery Success: {len(results)} URLs found.")
+                print(f"✅ Z.ai Structured Search Success: {len(results)} URLs found.")
                 return results
             else:
-                print("⚠️ Z.ai Chat returned no structured URLs. Falling back to Playwright...")
+                print("⚠️ Z.ai Structured Search returned no URLs. Falling back to Playwright...")
         except Exception as e:
-            print(f"⚠️ Z.ai Chat Discovery Failed: {e}. Falling back to Playwright...")
+            print(f"⚠️ Z.ai Structured Search Failed: {e}. Falling back to Playwright...")
         
         # Fallback to Playwright (pass original query as DDG supports site:)
         return await self._fallback_search_duckduckgo(query, count)
 
     def _optimize_query(self, query: str) -> str:
         """
-        Transform query to maximize search-prime compatibility.
+        Transform query to maximize compatibility.
         - Converts `site:domain.com query` -> `query from domain.com`
         """
         # Simple regex for site: operator
@@ -63,8 +64,9 @@ class SearchDiscoveryService:
             return f"{clean_q} from {domain}"
         return query
 
-    async def _search_zai_raw(self, query: str, count: int) -> List[WebSearchResult]:
-        """Execute search via Raw Z.ai API to get 'web_search' field."""
+    async def _search_zai_structured(self, query: str, count: int) -> List[WebSearchResult]:
+        """Execute search via Z.ai API to get structured 'web_search' field."""
+
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
