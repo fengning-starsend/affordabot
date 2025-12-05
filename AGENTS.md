@@ -181,21 +181,21 @@ Me: Read .claude/commands/search.md
 ```bash
 # Create epic with phases
 bd create "FEATURE_NAME" --type epic --priority 1
-bd create "Research" --type task --assignee claude-code  # Gets bd-xyz.1
-bd create "Implementation" --type task --assignee claude-code  # Gets bd-xyz.2
-bd dep add bd-xyz.2 bd-xyz.1 --type blocks
+bd create "Research" --type task --assignee claude-code  # Gets {prefix}-xyz.1
+bd create "Implementation" --type task --assignee claude-code  # Gets {prefix}-xyz.2
+bd dep add {prefix}-xyz.2 {prefix}-xyz.1 --type blocks
 
 # Work on task
-bd update bd-xyz.1 --status in_progress
+bd update {prefix}-xyz.1 --status in_progress
 
 # Discover bug during work
-bd create "Bug: X" --type bug --priority 1 --assignee claude-code  # Gets bd-xyz.1.1
-bd dep add bd-xyz.1.1 bd-xyz.1 --type discovered-from
-bd close bd-xyz.1.1 --reason "Fixed"
+bd create "Bug: X" --type bug --priority 1 --assignee claude-code  # Gets {prefix}-xyz.1.1
+bd dep add {prefix}-xyz.1.1 {prefix}-xyz.1 --type discovered-from
+bd close {prefix}-xyz.1.1 --reason "Fixed"
 
 # Complete phase
-bd close bd-xyz.1 --reason "Research complete"
-bd update bd-xyz.2 --status in_progress  # Start next
+bd close {prefix}-xyz.1 --reason "Research complete"
+bd update {prefix}-xyz.2 --status in_progress  # Start next
 
 # Session end (CRITICAL)
 bd sync  # Force export to git
@@ -210,7 +210,7 @@ bd sync  # Force export to git
 
 #### Key Concepts
 
-- **Hierarchical IDs:** bd-xyz → bd-xyz.1 → bd-xyz.1.1 (auto-assigned)
+- **Hierarchical IDs:** {prefix}-xyz → {prefix}-xyz.1 → {prefix}-xyz.1.1 (auto-assigned)
 - **Dependencies:** Create natural work queues (blocks, discovered-from, parent-child)
 - **Issue-First:** Create issue BEFORE coding (captures design intent)
 - **Ready work:** `ready(priority=1)` shows unblocked tasks
@@ -527,11 +527,11 @@ Role: <role-name>
 - `Agent: antigravity` (Antigravity IDE)
 - `Role`: keep your active role (backend-engineer, frontend-engineer, etc.)
 
-**Note:** Feature-Key should be the Beads issue ID (bd-xyz format)
+**Note:** Feature-Key should be the Beads issue ID (e.g. `bd-xyz` or `affordabot-xyz`)
 
 #### Branch Naming (Recommended)
-- `feature-bd-xyz` — new features (use Beads issue ID)
-- `fix-bd-xyz`, `hotfix-bd-xyz` — bug fixes
+- `feature-{issue-id}` — new features (use Beads issue ID, e.g. `feature-bd-xyz` or `feature-affordabot-xyz`)
+- `fix-{issue-id}`, `hotfix-{issue-id}` — bug fixes
 - `feature-DESCRIPTIVE_NAME` — OK if no Beads issue yet
 
 **Examples:**
