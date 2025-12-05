@@ -719,6 +719,29 @@ files = [
 ]
 
 [[package]]
+name = "city-scrapers-core"
+version = "0.10.1"
+description = "Core functionality for City Scrapers projects"
+optional = false
+python-versions = ">=3.6,<4.0"
+groups = ["main"]
+files = [
+    {file = "city-scrapers-core-0.10.1.tar.gz", hash = "sha256:6218a70c8d9eb01ed4c2cdafdf4fb52dea0292aeb09e24e798ff5fa7c53031bb"},
+    {file = "city_scrapers_core-0.10.1-py3-none-any.whl", hash = "sha256:142d8a119d1e62e398a5a248c8c8bb5c3e0ed820f29f6bf03d0ae46b928e8270"},
+]
+
+[package.dependencies]
+jsonschema = ">=3.0.0a5"
+pytz = "*"
+requests = "*"
+scrapy = "*"
+
+[package.extras]
+aws = ["boto3"]
+azure = ["azure-storage-blob (>=12)"]
+gcs = ["google-cloud-storage"]
+
+[[package]]
 name = "click"
 version = "8.1.8"
 description = "Composable command line interface toolkit"
@@ -5705,4 +5728,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "d6e546576baac2bdef146a66d06d07d33444a26bfe19f6d0e04ad511125d6a56"
+content-hash = "bf38745c428ade489d019171a8d3ec72d65b0409305e85cde5dc10bbfaaefb14"
