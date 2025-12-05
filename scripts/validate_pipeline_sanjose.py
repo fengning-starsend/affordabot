@@ -4,8 +4,9 @@ import sys
 from typing import List
 from pydantic import BaseModel, Field
 
-# Adjust path to find backend modules
+# Adjust path to find backend modules AND llm-common
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../llm-common')))
 
 from backend.services.routers.extraction_router import ExtractionRouter
 from backend.services.discovery.search_discovery import SearchDiscoveryService
@@ -98,6 +99,79 @@ async def main():
     
     for doc in results_data:
         print(f"- [{len(doc.content)} chars] {doc.title} ({doc.url})")
+
+
+    # 6. VECTOR STORAGE VALIDATION (Phase 4)
+    print("\n" + "=" * 60)
+    print("🧠 VECTOR STORAGE & EMBEDDINGS (Phase 4)")
+    print("=" * 60)
+    print("Configuring OpenRouter Embeddings (qwen/qwen3-embedding-8b)...")
+    
+    # Imports for Phase 4
+    try:
+        from llm_common.embeddings.openai import OpenAIEmbeddingService
+        from llm_common.retrieval.base import RetrievalBackend, RetrievedChunk
+        
+        # Mock Backend to verify Ingestion logic without DB dependencies
+        class MockPgVectorBackend(RetrievalBackend):
+            async def upsert(self, chunks: List[RetrievedChunk]):
+                print(f"   💾 [MOCK DB] Upserting {len(chunks)} chunks...")
+                if chunks:
+                    print(f"      Sample Embedding Dim: {len(chunks[0].embedding)}")
+                    print(f"      Sample Chunk: {chunks[0].content[:50]}...")
+                return len(chunks)
+            
+            async def query(self, embedding: List[float], limit: int = 5):
+                return []
+
+        # Setup Services
+        embedding_service = OpenAIEmbeddingService(
+            api_key=os.environ.get("OPENROUTER_API_KEY") or os.environ.get("ZAI_API_KEY"),
+            base_url="https://openrouter.ai/api/v1",
+            model="qwen/qwen3-embedding-8b"
+        )
+        
+        # We manually chunk and embed one document to prove the pipeline
+        if results_data:
+            doc_to_ingest = results_data[0]
+            print(f"Processing Document: {doc_to_ingest.title}")
+            
+            # 1. Chunking (Simple mock logic)
+            chunks_text = [doc_to_ingest.content[i:i+500] for i in range(0, len(doc_to_ingest.content), 500)]
+            chunks_text = [c for c in chunks_text if c.strip()][:3] # Take top 3 chunks
+            print(f"   Generated {len(chunks_text)} chunks.")
+            
+            # 2. Embedding
+            print("   Generating Embeddings via OpenRouter...")
+            embeddings = await embedding_service.embed_documents(chunks_text)
+            print(f"   ✅ Embeddings Generated! Count: {len(embeddings)}")
+            
+            # 3. Storage
+            backend = MockPgVectorBackend()
+            
+            # Construct Chunks
+            stored_chunks = []
+            for i, (txt, emb) in enumerate(zip(chunks_text, embeddings)):
+                stored_chunks.append(RetrievedChunk(
+                    id=f"chunk_{i}",
+                    content=txt,
+                    embedding=emb,
+                    document_id="doc_1",
+                    chunk_id=f"chunk_{i}",
+                    source=doc_to_ingest.url,
+                    metadata={"title": doc_to_ingest.title}
+                ))
+                
+            await backend.upsert(stored_chunks)
+            print("✅ Phase 4 Validation: SUCCESS")
+            
+        else:
+            print("⚠️ No documents to ingest. Skipping Phase 4 validation.")
+
+    except Exception as e:
+        import traceback
+        print(f"❌ Phase 4 Validation Failed: {e}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     asyncio.run(main())
