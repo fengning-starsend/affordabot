@@ -10,11 +10,11 @@ class WebReaderClient:
     Fetches clean markdown/text from URLs.
     """
     
-    def __init__(self, api_key: Optional[str] = None, base_url: str = "https://api.z.ai"):
+    def __init__(self, api_key: Optional[str] = None, base_url: str = "https://api.z.ai/api/coding"):
         self.api_key = api_key or os.environ.get("ZAI_API_KEY")
         self.base_url = base_url.rstrip("/")
         
-    async def fetch_content(self, url: str) -> Dict[str, Any]:
+    async def fetch_content(self, url: str, **kwargs) -> Dict[str, Any]:
         """
         Fetch content from a URL using Web Reader.
         
@@ -32,12 +32,14 @@ class WebReaderClient:
                 "title": f"Mock Title for {url}",
                 "url": url
             }
+        
+        payload = {"url": url, **kwargs}
 
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"{self.base_url}/paas/v4/reader",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                json={"url": url}
+                json=payload
             ) as response:
                 if response.status != 200:
                     text = await response.text()
