@@ -719,6 +719,29 @@ files = [
 ]
 
 [[package]]
+name = "city-scrapers-core"
+version = "0.10.1"
+description = "Core functionality for City Scrapers projects"
+optional = false
+python-versions = ">=3.6,<4.0"
+groups = ["main"]
+files = [
+    {file = "city-scrapers-core-0.10.1.tar.gz", hash = "sha256:6218a70c8d9eb01ed4c2cdafdf4fb52dea0292aeb09e24e798ff5fa7c53031bb"},
+    {file = "city_scrapers_core-0.10.1-py3-none-any.whl", hash = "sha256:142d8a119d1e62e398a5a248c8c8bb5c3e0ed820f29f6bf03d0ae46b928e8270"},
+]
+
+[package.dependencies]
+jsonschema = ">=3.0.0a5"
+pytz = "*"
+requests = "*"
+scrapy = "*"
+
+[package.extras]
+aws = ["boto3"]
+azure = ["azure-storage-blob (>=12)"]
+gcs = ["google-cloud-storage"]
+
+[[package]]
 name = "click"
 version = "8.1.8"
 description = "Composable command line interface toolkit"
@@ -2121,7 +2144,7 @@ optional = false
 python-versions = ">=3.13,<4.0"
 groups = ["main"]
 files = []
-develop = false
+develop = true
 
 [package.dependencies]
 cachetools = "^5.3.0"
@@ -2134,10 +2157,8 @@ tenacity = "^8.0.0"
 typing-extensions = "^4.0.0"
 
 [package.source]
-type = "git"
-url = "https://github.com/stars-end/llm-common.git"
-reference = "v0.3.0"
-resolved_reference = "b085b8b56dc232dca7b839db67840da2324f6ea4"
+type = "directory"
+url = "../../llm-common"
 
 [[package]]
 name = "lxml"
@@ -5705,4 +5726,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "d6e546576baac2bdef146a66d06d07d33444a26bfe19f6d0e04ad511125d6a56"
+content-hash = "a2c04a960e533e81a3c86b9b4b4b556fe2b2b06eff8c4b93e0d95cd132423428"

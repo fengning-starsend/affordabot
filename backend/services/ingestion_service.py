@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from uuid import uuid4
 from supabase import Client
 
 # LLM Common v0.3.0 interfaces
-from llm_common import LLMClient
 from llm_common.retrieval import SupabasePgVectorBackend, RetrievedChunk
 from llm_common.embeddings import EmbeddingService
+# Use absolute import pattern relative to backend root (which is in path)
+from contracts.storage import BlobStorage
+from typing import Optional
 
 class IngestionService:
     """
@@ -28,12 +30,14 @@ class IngestionService:
         supabase_client: Client,
         vector_backend: SupabasePgVectorBackend,
         embedding_service: EmbeddingService,
+        storage_backend: Optional["BlobStorage"] = None, # Added dependency
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
     ):
         self.supabase = supabase_client
         self.vector_backend = vector_backend
         self.embedding_service = embedding_service
+        self.storage_backend = storage_backend
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
     
@@ -61,6 +65,33 @@ class IngestionService:
         if not text:
             print(f"⚠️ No text extracted for scrape {scrape_id}")
             return 0
+
+        # 2.5 Upload to Blob Storage (New)
+        if self.storage_backend and scrape.get('data'):
+             try:
+                 # Construct path: jurisdiction/YYYY/MM/scrape_id.html
+                 from datetime import datetime
+                 now = datetime.now()
+                 ext = ".html" # Default
+                 if scrape.get('content_type') == 'application/pdf':
+                     ext = ".pdf"
+                 
+                 path = f"{scrape.get('source_id', 'unknown')}/{now.year}/{now.month}/{scrape_id}{ext}"
+                 
+                 content_bytes = str(scrape['data']).encode('utf-8') # Simple for now
+                 if isinstance(scrape['data'], dict) and 'content' in scrape['data']:
+                     content_bytes = str(scrape['data']['content']).encode('utf-8')
+                     
+                 uri = await self.storage_backend.upload(path, content_bytes)
+                 
+                 # Update raw_scrape with storage URI
+                 self.supabase.table('raw_scrapes').update({
+                     'storage_uri': uri
+                 }).eq('id', scrape_id).execute()
+                 
+             except Exception as e:
+                 print(f"⚠️ Storage upload failed: {e}")
+                 # Non-blocking, continue ingestion
 
         # 3. Chunk text
         chunks = self._chunk_text(text)
