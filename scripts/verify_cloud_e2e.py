@@ -48,10 +48,10 @@ async def verify_storage():
     logger.info("🧪 Testing Storage Upload...")
     
     url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SERVICE_KEY")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
     
     if not url or not key:
-        logger.error("❌ Missing Supabase Credentials")
+        logger.error("❌ Missing Supabase Credentials (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)")
         return False
         
     try:
