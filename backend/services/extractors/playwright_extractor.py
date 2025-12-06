@@ -2,7 +2,7 @@ from typing import Type, TypeVar
 from pydantic import BaseModel
 from playwright.async_api import async_playwright
 # Using the protocol from contracts
-from backend.contracts.extraction import ExtractorClient
+from contracts.extraction import ExtractorClient
 
 T = TypeVar("T", bound=BaseModel)
 

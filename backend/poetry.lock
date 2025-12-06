@@ -2158,7 +2158,7 @@ typing-extensions = "^4.0.0"
 
 [package.source]
 type = "directory"
-url = "../../llm-common"
+url = "../packages/llm-common"
 
 [[package]]
 name = "lxml"
@@ -5726,4 +5726,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "a2c04a960e533e81a3c86b9b4b4b556fe2b2b06eff8c4b93e0d95cd132423428"
+content-hash = "f46b1e42317c5a4ecf323d5b1f346253a784712193628868c996b2911d109162"
