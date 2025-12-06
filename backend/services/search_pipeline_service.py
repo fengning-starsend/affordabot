@@ -4,10 +4,7 @@ from typing import List, Any
 from dataclasses import dataclass
 
 from llm_common import WebSearchResult, LLMClient, LLMMessage, MessageRole, SupabasePgVectorBackend
-# from services.retrieval.custom_pgvector_backend import CustomPgVectorBackendService
-from services.ingestion_service import IngestionService
-from services.discovery.search_discovery import SearchDiscoveryService
-from services.retrieval.custom_pgvector_backend import CustomPgVectorBackend
+
 
 logger = logging.getLogger(__name__)
 
