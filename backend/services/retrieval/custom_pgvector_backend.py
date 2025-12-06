@@ -75,7 +75,7 @@ class CustomPgVectorBackend(SupabasePgVectorBackend):
         try:
             response = self.supabase.rpc(self.rpc_function, rpc_params).execute()
             results = response.data
-        except Exception as e:
+        except Exception:
             # Fallback to direct SQL query
             results = await self._direct_similarity_search(
                 query_embedding, top_k, min_score

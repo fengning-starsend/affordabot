@@ -9,6 +9,7 @@ from supabase import Client
 # LLM Common v0.3.0 interfaces
 from llm_common.retrieval import SupabasePgVectorBackend, RetrievedChunk
 from llm_common.embeddings import EmbeddingService
+from llm_common import WebSearchResult
 # Use absolute import pattern relative to backend root (which is in path)
 from contracts.storage import BlobStorage
 from typing import Optional
@@ -291,7 +292,7 @@ class IngestionService:
                 try:
                     row = self.supabase.table('raw_scrapes').select('document_id').eq('id', scrape_id).single().execute()
                     return row.data.get('document_id')
-                except:
+                except Exception:
                     return None
             
             return None
