@@ -1,3 +1,0 @@
-[submodule "packages/llm-common"]
-	path = packages/llm-common
-	url = https://github.com/stars-end/llm-common.git
