@@ -9,7 +9,14 @@ import os
 import logging
 
 # Ensure backend is in path
-sys.path.append(os.path.join(os.getcwd(), 'backend'))
+# Find the absolute path to the 'backend' directory
+# Assuming script is in scripts/verify_cloud_e2e.py
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+backend_path = os.path.join(project_root, 'backend')
+sys.path.append(backend_path)
+
+print(f"DEBUG: Added {backend_path} to sys.path")
+print(f"DEBUG: sys.path: {sys.path}")
 
 from services.extractors.playwright_extractor import PlaywrightExtractor
 from services.storage.supabase_storage import SupabaseBlobStorage
