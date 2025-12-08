@@ -63,19 +63,89 @@ class RAGSpiderRunner:
             
             process = CrawlerProcess(settings)
             
-            spiders = [SanJoseMeetingsSpider, SanJoseMunicodeSpider]
+            # 2a. Map Spiders to Sources
+            spider_configs = [
+                (SanJoseMeetingsSpider, "San Jose Meetings", "meetings"),
+                (SanJoseMunicodeSpider, "San Jose Municode", "code")
+            ]
             
-            for spider_cls in spiders:
-                crawler = process.create_crawler(spider_cls)
-                # Connect signals to track items
-                crawler.signals.connect(self._item_scraped, signal=signals.item_scraped)
-                process.crawl(crawler)
+            # Get Jurisdiction ID (Assuming "City of San Jose" exists from legislation scrape)
+            # If not, create it
+            # Note: The async method run_rag_spiders call is synchronous, so we need to run async DB calls
+            
+            # Helper to run async in sync context
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            jur_id = loop.run_until_complete(self.db.get_or_create_jurisdiction("City of San Jose", "city"))
+            
+            if not jur_id:
+                raise Exception("Failed to get Jurisdiction ID")
+                
+            source_ids = []
+            
+            for spider_cls, source_name, source_type in spider_configs:
+                source_id = loop.run_until_complete(self.db.get_or_create_source(jur_id, source_name, source_type))
+                if source_id:
+                    source_ids.append(source_id)
+                    crawler = process.create_crawler(spider_cls)
+                    crawler.signals.connect(self._item_scraped, signal=signals.item_scraped)
+                    # Pass source_id as spider argument
+                    process.crawl(crawler, source_id=source_id)
+                else:
+                    logger.error(f"Failed to get Source ID for {source_name}")
 
             # 3. Run (Blocks)
             logger.info("🏃 Running spiders...")
             process.start()
             
-            # 4. Log Success
+            # 4. Trigger Ingestion
+            logger.info("🍽️  Starting Ingestion...")
+            
+            # Import Ingestion Service components
+            from services.ingestion_service import IngestionService
+            from llm_common.llm_client import LLMClient
+            from llm_common.retrieval import SupabasePgVectorBackend
+            from llm_common.embeddings import EmbeddingService
+            
+            # Setup Services
+            # Note: EmbeddingService might need provider config. 
+            # Assuming defaults or env vars (OPENAI_API_KEY)
+            embedding_service = EmbeddingService() 
+            vector_backend = SupabasePgVectorBackend(
+                supabase_client=self.db.client,
+                table_name="documents"
+            )
+            ingestion_service = IngestionService(
+                supabase_client=self.db.client,
+                vector_backend=vector_backend,
+                embedding_service=embedding_service
+            )
+            
+            # Fetch unprocessed scrapes for these sources
+            total_ingested = 0
+            
+            if self.db.client:
+                # We can't query "IN" easily with simple supabase-py syntax sometimes, loop for now
+                for sid in source_ids:
+                    # Fetch unprocessed
+                    # Note: We should probably limit batch size
+                    unprocessed = self.db.client.table('raw_scrapes').select('id')\
+                        .eq('source_id', sid)\
+                        .is_('processed', 'null')\
+                        .execute()
+                    
+                    for row in unprocessed.data:
+                        try:
+                            # Run async ingestion
+                            chunks = loop.run_until_complete(ingestion_service.process_raw_scrape(row['id']))
+                            total_ingested += chunks
+                        except Exception as e:
+                            logger.error(f"Failed to ingest scrape {row['id']}: {e}")
+                            
+            logger.info(f"🍽️  Ingestion Complete. Created {total_ingested} chunks.")
+            
+            # 5. Log Success
             total_items = sum(self.results.values())
             logger.info(f"🏁 Complete. Scraped {total_items} items: {self.results}")
             
