@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python and Poetry
-        uses: stars-end/agent-skills/.github/actions/python-setup@main
+        uses: stars-end/agent-skills/github-actions/actions/python-setup@main
         with:
           working-directory: backend/
 
