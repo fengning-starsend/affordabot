@@ -106,7 +106,7 @@ class RAGSpiderRunner:
             
             # Import Ingestion Service components
             from services.ingestion_service import IngestionService
-            from llm_common.llm_client import LLMClient
+            from llm_common import LLMClient
             from llm_common.retrieval import SupabasePgVectorBackend
             from llm_common.embeddings.openai import OpenAIEmbeddingService
             from llm_common.embeddings.mock import MockEmbeddingService

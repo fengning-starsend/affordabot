@@ -65,7 +65,8 @@ def apply_migration():
     # Force SSL
     env["PGSSLMODE"] = "require"
     
-    migration_file = os.path.join(os.path.dirname(__file__), '../../supabase/migrations/20251208183000_add_source_types.sql')
+    # Path to your migration file (relative to backend/scripts)
+    migration_file = os.path.join(os.path.dirname(__file__), '../../supabase/migrations/20251209081500_add_scrape_history_notes.sql')
     migration_file = os.path.abspath(migration_file)
     
     print(f"Applying {migration_file}...")

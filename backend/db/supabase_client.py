@@ -42,6 +42,10 @@ class SupabaseDB:
         if not self.client:
             return None
         
+        # Serialize date objects if present
+        if "introduced_date" in bill_data and hasattr(bill_data["introduced_date"], "isoformat"):
+            bill_data["introduced_date"] = bill_data["introduced_date"].isoformat()
+        
         # Check if exists
         existing = self.client.table("legislation").select("id").eq(
             "jurisdiction_id", jurisdiction_id

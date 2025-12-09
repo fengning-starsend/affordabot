@@ -79,7 +79,8 @@ class ScrapeJob:
                 
                 # Ensure Source exists for this API scraper
                 source_name = f"{slug} API"
-                source_id = await self.db.get_or_create_source(jur_id, source_name, "legislation_api")
+                source_url = f"https://webapi.legistar.com/v1/{slug}/matters"
+                source_id = await self.db.get_or_create_source(jur_id, source_name, "legislation_api", url=source_url)
                 
                 new_count = 0
                 updated_count = 0
