@@ -3,7 +3,6 @@ import os
 import sys
 from uuid import uuid4
 import pytest
-from unittest.mock import MagicMock, patch
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
@@ -70,7 +69,6 @@ async def test_full_rag_pipeline_flow():
     # We will try to use the real one, but fall back or use a deterministic mock if fails.
     
     from llm_common.retrieval import SupabasePgVectorBackend
-    from llm_common.embeddings import EmbeddingService
     
     # We'll use a Mock Embedding Service for the test to ensure we test LOGIC not API keys
     class MockEmbeddingService:
@@ -105,7 +103,7 @@ async def test_full_rag_pipeline_flow():
     # 5. Retrieval Verify
     # Note: Since we used mock embeddings (constant vector), search should find it if we search with same vector
     print("🔍 Verifying Retrieval...")
-    query_vec = [0.1] * 1536
+    _query_vec = [0.1] * 1536
     
     # Supabase RPC 'match_documents' usually used
     # But llm-common abstracts this via backend.query()? 

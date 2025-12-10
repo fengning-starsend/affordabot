@@ -111,7 +111,6 @@ class RAGSpiderRunner:
             from services.ingestion_service import IngestionService
             from services.storage import S3Storage
             from services.vector_backend_factory import create_vector_backend
-            from llm_common import LLMClient
             from llm_common.embeddings.openai import OpenAIEmbeddingService
             from llm_common.embeddings.mock import MockEmbeddingService
             

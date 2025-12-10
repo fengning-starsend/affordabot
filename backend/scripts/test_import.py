@@ -18,7 +18,7 @@ try:
     # Try adding outer to path
     sys.path.append(os.path.join(os.getcwd(), 'affordabot_scraper'))
     print("Attempting import from affordabot_scraper.spiders (shimmed path)...")
-    from affordabot_scraper.spiders.sanjose_meetings import SanJoseMeetingsSpider
+    from affordabot_scraper.spiders.sanjose_meetings import SanJoseMeetingsSpider as _SanJoseMeetingsSpider  # noqa: F401
     print("✅ Success 2")
 except ImportError as e:
     print(f"❌ Failed 2: {e}")

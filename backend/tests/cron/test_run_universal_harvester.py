@@ -24,8 +24,8 @@ async def test_harvester_flow():
     
     # Mock Ingestion Service
     with patch('services.ingestion_service.IngestionService') as MockIngestion, \
-         patch('llm_common.embeddings.EmbeddingService') as MockEmbed, \
-         patch('services.vector_backend_factory.create_vector_backend') as MockBackend:
+         patch('llm_common.embeddings.EmbeddingService') as _MockEmbed, \
+         patch('services.vector_backend_factory.create_vector_backend') as _MockBackend:
         
         instance = MockIngestion.return_value
         instance.process_raw_scrape = AsyncMock(return_value=5)

@@ -82,7 +82,6 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
 
         if scrape_type == "harvest":
              # Run Universal Harvester script via subprocess
-            import subprocess
             import sys
             
             script_path = os.path.join(os.path.dirname(__file__), '../scripts/cron/run_universal_harvester.py')
@@ -106,7 +105,6 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
 
         if scrape_type == "rag":
             # Run RAG spiders script via subprocess
-            import subprocess
             import sys
             
             script_path = os.path.join(os.path.dirname(__file__), '../scripts/cron/run_rag_spiders.py')
@@ -137,7 +135,6 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
 
         # ... existing legislation logic ...
         # Import scraper registry
-        from services.scraper.san_jose import SanJoseScraper
         
     except Exception as e:
         error_msg = str(e)
