@@ -24,6 +24,22 @@ if echo "$STAGED" | grep -E '^\.github/workflows/' >/dev/null 2>&1; then
   echo "⚠️  You are committing workflow changes. Prefer infra branches, not scenario branches." >&2
 fi
 
+# Check Python syntax on staged .py files (soft warning)
+python_files=$(echo "$STAGED" | grep '\\.py$' || true)
+if [ -n "$python_files" ]; then
+  syntax_errors=0
+  for file in $python_files; do
+    if [ -f "$file" ] && ! python -m py_compile "$file" 2>/dev/null; then
+      echo "⚠️  Python syntax error in: $file" >&2
+      syntax_errors=$((syntax_errors + 1))
+    fi
+  done
+
+  if [ $syntax_errors -gt 0 ]; then
+    echo "⚠️  Found $syntax_errors Python syntax error(s). Run 'make lint' to check." >&2
+  fi
+fi
+
 # Block deletion of critical DX directories/files unless explicitly allowed
 if echo "$STATUS" | awk '$1=="D" {print $2}' | grep -E '^(scripts/cli/|scripts/git/install_hooks\.sh|\.githooks/?)' >/dev/null 2>&1; then
   if [ "${ALLOW_DX_DIR_CHANGES:-}" != "1" ]; then
