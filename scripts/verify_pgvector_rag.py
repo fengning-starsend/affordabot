@@ -20,10 +20,10 @@ async def check_environment():
     
     required_vars = [
         "DATABASE_URL",
-        "MINIO_ENDPOINT",
+        "MINIO_URL",
         "MINIO_ACCESS_KEY",
         "MINIO_SECRET_KEY",
-        "MINIO_BUCKET_NAME",
+        "MINIO_BUCKET",
     ]
     
     missing = []
@@ -173,10 +173,10 @@ async def check_minio():
         from services.storage.s3_storage import S3Storage
         
         storage = S3Storage(
-            endpoint=os.getenv("MINIO_ENDPOINT"),
+            endpoint=os.getenv("MINIO_URL"),
             access_key=os.getenv("MINIO_ACCESS_KEY"),
             secret_key=os.getenv("MINIO_SECRET_KEY"),
-            bucket_name=os.getenv("MINIO_BUCKET_NAME"),
+            bucket_name=os.getenv("MINIO_BUCKET"),
             secure=os.getenv("MINIO_SECURE", "true").lower() == "true"
         )
         
