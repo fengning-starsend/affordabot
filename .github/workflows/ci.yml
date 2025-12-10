@@ -73,6 +73,20 @@ jobs:
   backend-lint-and-test:
     name: Backend Lint & Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:v0.5.1
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: affordabot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -80,6 +94,11 @@ jobs:
         uses: stars-end/agent-skills/github-actions/actions/python-setup@c88517f6d135b00bb177cad20963c57da9d3caa9
         with:
           working-directory: backend/
+
+      - name: Install Playwright Browsers
+        run: |
+          cd backend
+          poetry run playwright install --with-deps chromium
 
       - name: Run Ruff (Linting)
         run: |
@@ -90,6 +109,16 @@ jobs:
         run: |
           cd backend
           poetry run pytest -v
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
+
+      - name: Run San Jose V3 Verification
+        run: |
+          cd backend
+          poetry run python scripts/verification/verify_sanjose_v3.py
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
 
   beads-validation:
     name: Beads Validation
