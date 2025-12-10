@@ -98,7 +98,7 @@ class AutoDiscoveryService:
         if response.status_code != 200:
             raise Exception(f"Z.ai API Error {response.status_code}: {response.text}")
             
-        data = response.json()
+        _data = response.json()
         
         # Z.ai/GLM-4 usually puts search results in the 'web_search' tool result 
         # OR embeds them in the choices if search_result=True.

@@ -116,7 +116,6 @@ class UniversalHarvester:
         
         # 2. Save to Raw Scrapes
         import hashlib
-        import json
         
         content_hash = hashlib.sha256(markdown_content.encode("utf-8")).hexdigest()
         

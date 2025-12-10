@@ -14,7 +14,6 @@ import sys
 import os
 import logging
 import asyncio
-from uuid import uuid4
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
@@ -42,7 +41,7 @@ async def verify_pipeline():
     print("\n🔍 Phase 1: Discovery (GLM-4.6)")
     # We will trigger the actual discovery service code
     from services.auto_discovery_service import AutoDiscoveryService
-    discovery = AutoDiscoveryService()
+    _discovery = AutoDiscoveryService()
     
     # Run only for permit category to save time/tokens in test
     # (We can't easily restrict the service method, so we run full or mock)
@@ -101,7 +100,7 @@ async def verify_pipeline():
     print("\n⚖️  Phase 2.5: Legislation API (Legistar -> SQL + Vector)")
     # Run daily_scrape.py via subprocess
     daily_scrape_path = os.path.join(os.path.dirname(__file__), '../../../scripts/daily_scrape.py')
-    print(f"   Running daily_scrape.py for San Jose...")
+    print("   Running daily_scrape.py for San Jose...")
     
     # We need to ensure PYTHONPATH includes backend
     env = os.environ.copy()
@@ -151,7 +150,6 @@ async def verify_pipeline():
     print("\n🕷️ Phase 3: Backbone Scrape (Scrapy)")
     # Trigger the RAG spiders script
     # We use subprocess here because Scrapy Reactor can't be restarted in same process
-    import subprocess
     script_path = os.path.join(os.path.dirname(__file__), '../cron/run_rag_spiders.py')
     
     print("   Running Scrapy subprocess...")
