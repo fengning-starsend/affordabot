@@ -9,7 +9,7 @@ print(f"sys.path: {sys.path}")
 
 try:
     print("Attempting import from affordabot_scraper.affordabot_scraper.spiders...")
-    from affordabot_scraper.affordabot_scraper.spiders.sanjose_meetings import SanJoseMeetingsSpider
+    from affordabot_scraper.affordabot_scraper.spiders.sanjose_meetings import SanJoseMeetingsSpider as _SanJoseMeetingsSpider  # noqa: F401
     print("✅ Success 1")
 except ImportError as e:
     print(f"❌ Failed 1: {e}")
