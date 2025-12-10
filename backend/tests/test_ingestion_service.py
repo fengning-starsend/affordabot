@@ -20,7 +20,7 @@ def mock_supabase():
 
 @pytest.fixture
 def mock_vector_backend():
-    backend = AsyncMock(spec=RetrievalBackend)
+    backend = AsyncMock()
     return backend
 
 @pytest.fixture
