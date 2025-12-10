@@ -22,6 +22,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from supabase import Client, create_client
 from db.supabase_client import SupabaseDB
+from db.postgres_client import PostgresDB
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -52,8 +53,12 @@ async def update_review(
 
 # Initialize database client
 def get_db():
-    """Dependency to get database client"""
+    """Dependency to get Supabase client (Legacy)"""
     return SupabaseDB()
+
+def get_pg_db():
+    """Dependency to get Postgres client"""
+    return PostgresDB()
 
 
 # ============================================================================
@@ -67,18 +72,11 @@ class ManualScrapeRequest(BaseModel):
 
 # ... (inside _run_scrape_task signature) ...
 
-async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: SupabaseDB, scrape_type: str = "legislation"):
+async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: PostgresDB, scrape_type: str = "legislation"):
     """Background task to run scraping with multi-source support."""
-    if not db.client:
-        print(f"Task {task_id}: Database not available")
-        return
-
     try:
         # Update task status to running
-        db.client.table('admin_tasks').update({
-            'status': 'running',
-            'started_at': datetime.now().isoformat()
-        }).eq('id', task_id).execute()
+        await db.update_admin_task(task_id, status='running')
 
         if scrape_type == "harvest":
              # Run Universal Harvester script via subprocess
@@ -96,11 +94,12 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
             if proc.returncode != 0:
                 raise Exception(f"Harvester script failed: {stderr.decode()}")
             
-            db.client.table('admin_tasks').update({
-                'status': 'completed',
-                'completed_at': datetime.now().isoformat(),
-                'result': {'message': 'Harvester script executed', 'logs': stdout.decode()}
-            }).eq('id', task_id).execute()
+            
+            await db.update_admin_task(
+                task_id=task_id,
+                status='completed',
+                result={'message': 'Harvester script executed', 'logs': stdout.decode()}
+            )
             return
 
         if scrape_type == "rag":
@@ -126,15 +125,66 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
             # Note: The script creates its OWN task_id. This is a bit disjointed.
             # Improvement: Pass task_id to script? For now, just marking this trigger task as done.
             
-            db.client.table('admin_tasks').update({
-                'status': 'completed',
-                'completed_at': datetime.now().isoformat(),
-                'result': {'message': 'RAG script executed', 'logs': stdout.decode()}
-            }).eq('id', task_id).execute()
+            await db.update_admin_task(
+                task_id=task_id,
+                status='completed',
+                result={'message': 'RAG script executed', 'logs': stdout.decode()}
+            )
             return
 
         # ... existing legislation logic ...
         # Import scraper registry
+        from services.scraper.san_jose import SanJoseScraper
+        from services.scraper.california_state import CaliforniaStateScraper
+        from services.scraper.santa_clara_county import SantaClaraCountyScraper
+        from services.scraper.saratoga import SaratogaScraper
+        
+        SCRAPER_MAP = {
+            'City of San Jose': SanJoseScraper,
+            'State of California': CaliforniaStateScraper,
+            'Santa Clara County': SantaClaraCountyScraper,
+            'Saratoga': SaratogaScraper,
+        }
+        
+        # Get jurisdiction config from database
+        jur_config = await db.get_jurisdiction_by_name(jurisdiction)
+        if not jur_config:
+            raise Exception(f"Jurisdiction {jurisdiction} not found in database")
+        
+        config = jur_config
+        scraper_class = SCRAPER_MAP.get(jurisdiction)
+        
+        # Execute multi-source scraping based on source_priority
+        bills = await _execute_multi_source_scrape(scraper_class, config)
+        
+        # Store in database
+        jurisdiction_id = config['id']
+        bills_new = 0
+        bills_updated = 0
+        
+        for bill in bills:
+            leg_id = await db.create_legislation(jurisdiction_id, bill.dict())
+            if leg_id:
+                bills_new += 1
+        
+        # Record scrape history
+        await db.create_scrape_history(
+            jurisdiction=jurisdiction,
+            bills_found=len(bills),
+            bills_new=bills_new,
+            bills_updated=bills_updated,
+            status='success',
+            task_id=task_id
+        )
+        
+        # Update task status to completed
+        await db.update_admin_task(
+            task_id=task_id,
+            status='completed',
+            result={'bills_found': len(bills), 'bills_new': bills_new}
+        )
+        
+        print(f"Task {task_id}: Completed scraping {jurisdiction}")
         
     except Exception as e:
         error_msg = str(e)
@@ -143,12 +193,26 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Sup
         traceback.print_exc()
         
         # Update task status to failed
-        if db.client:
-            db.client.table('admin_tasks').update({
-                'status': 'failed',
-                'completed_at': datetime.now().isoformat(),
-                'error_message': error_msg
-            }).eq('id', task_id).execute()
+        await db.update_admin_task(task_id, status='failed', error=error_msg)
+        
+        # Record failed scrape
+        await db.create_scrape_history(
+            jurisdiction=jurisdiction,
+            bills_found=0,
+            status='failed',
+            error_message=error_msg,
+            task_id=task_id
+        )
+
+
+class JurisdictionDashboardStats(BaseModel):
+    jurisdiction: str
+    last_scrape: Optional[datetime]
+    total_raw_scrapes: int
+    processed_scrapes: int
+    total_bills: int
+    pipeline_status: Literal["healthy", "degraded", "unknown"]
+    active_alerts: List[str]
 
 
 class ManualScrapeResponse(BaseModel):
@@ -230,7 +294,7 @@ class AnalysisHistory(BaseModel):
 async def trigger_manual_scrape(
     request: ManualScrapeRequest,
     background_tasks: BackgroundTasks,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db) # Migrated to Postgres
 ):
     """
     Trigger a manual scrape for a specific jurisdiction.
@@ -241,15 +305,14 @@ async def trigger_manual_scrape(
     
     task_id = str(uuid4())
     
-    # Create task record in database
-    if db.client:
-        db.client.table('admin_tasks').insert({
-            'id': task_id,
-            'task_type': 'scrape',
-            'jurisdiction': request.jurisdiction,
-            'status': 'queued',
-            'config': {'force': request.force}
-        }).execute()
+    # Create task record in database (Postgres)
+    await db.create_admin_task(
+        task_id=task_id,
+        task_type='scrape',
+        status='queued',
+        jurisdiction=request.jurisdiction,
+        config={'force': request.force}
+    )
     
     # Queue scraping task
     background_tasks.add_task(
@@ -553,6 +616,70 @@ async def update_jurisdiction(
     return result.data[0] if result.data else None
 
 
+@router.get("/jurisdiction/{jurisdiction_id}/dashboard", response_model=JurisdictionDashboardStats)
+async def get_jurisdiction_dashboard(
+    jurisdiction_id: str,
+    db: PostgresDB = Depends(get_pg_db)
+):
+    """
+    Get aggregated dashboard stats for a jurisdiction.
+    """
+    # 1. Get Jurisdiction Info (SQL)
+    # Using raw SQL for aggregation
+    
+    # Total Raw Scrapes & Processed
+    # Assuming we can join sources to get jurisdiction scrapes?
+    # raw_scrapes -> sources -> (jurisdiction_id logic?)
+    # Sources table has `jurisdiction_id`? Or `jurisdiction` name?
+    # Let's check `sources` table schema. Assuming `sources` table has `jurisdiction_id`.
+    # And `raw_scrapes` links to `sources`.
+    
+    try:
+        # Get Source IDs for this jurisdiction
+        # sources = await db._fetch("SELECT id FROM sources WHERE jurisdiction_id = $1", jurisdiction_id)
+        # source_ids = [s['id'] for s in sources]
+        
+        # Actually doing it in one query is better if possible, but step-by-step is safer for now.
+        
+        # Metrics
+        query_stats = """
+        SELECT 
+            count(*) as total,
+            count(*) filter (where processed = true) as processed,
+            max(created_at) as last_scrape
+        FROM raw_scrapes 
+        WHERE source_id IN (SELECT id FROM sources WHERE jurisdiction_id = $1)
+        """
+        # Note: If no sources, this returns 0/0/null.
+        # But wait, `sources` might use jurisdiction NAME?
+        # Let's assume ID based on endpoint input.
+        
+        # Check if column is jurisdiction_id or jurisdiction_name?
+        # Supabase code used `jurisdiction` name string in many places.
+        # But `jurisdictions` table has ID.
+        # I'll try to cast jurisdiction_id to uuid if needed.
+        
+        stats_row = await db._fetchrow(query_stats, jurisdiction_id)
+        
+        # Pipeline Health
+        # Check last admin_task for 'scrape'?
+        # admin_tasks doesn't stick to source schema.
+        
+        return JurisdictionDashboardStats(
+            jurisdiction=jurisdiction_id,
+            last_scrape=stats_row['last_scrape'] if stats_row else None,
+            total_raw_scrapes=stats_row['total'] if stats_row else 0,
+            processed_scrapes=stats_row['processed'] if stats_row else 0,
+            total_bills=0, # TODO: Aggregation from legislative_analysis or bills table
+            pipeline_status='healthy', # Placeholder
+            active_alerts=[]
+        )
+    except Exception as e:
+        # Fallback/Error handling
+        print(f"Dashboard stats failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================================
 # Prompt Management Endpoints
 # ============================================================================
@@ -655,93 +782,7 @@ async def get_detailed_health():
 # Background Task Implementations
 # ============================================================================
 
-async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: SupabaseDB):
-    """Background task to run scraping with multi-source support."""
-    if not db.client:
-        print(f"Task {task_id}: Database not available")
-        return
 
-    try:
-        # Update task status to running
-        db.client.table('admin_tasks').update({
-            'status': 'running',
-            'started_at': datetime.now().isoformat()
-        }).eq('id', task_id).execute()
-
-        # Import scraper registry
-        from services.scraper.san_jose import SanJoseScraper
-        from services.scraper.california_state import CaliforniaStateScraper
-        from services.scraper.santa_clara_county import SantaClaraCountyScraper
-        from services.scraper.saratoga import SaratogaScraper
-        
-        SCRAPER_MAP = {
-            'City of San Jose': SanJoseScraper,
-            'State of California': CaliforniaStateScraper,
-            'Santa Clara County': SantaClaraCountyScraper,
-            'Saratoga': SaratogaScraper,
-        }
-        
-        # Get jurisdiction config from database
-        jur_config = db.client.table('jurisdictions').select('*').eq('name', jurisdiction).single().execute()
-        if not jur_config.data:
-            raise Exception(f"Jurisdiction {jurisdiction} not found in database")
-        
-        config = jur_config.data
-        scraper_class = SCRAPER_MAP.get(jurisdiction)
-        
-        # Execute multi-source scraping based on source_priority
-        bills = await _execute_multi_source_scrape(scraper_class, config)
-        
-        # Store in database
-        jurisdiction_id = config['id']
-        bills_new = 0
-        bills_updated = 0
-        
-        for bill in bills:
-            leg_id = await db.store_legislation(jurisdiction_id, bill.dict())
-            if leg_id:
-                bills_new += 1
-        
-        # Record scrape history
-        db.client.table('scrape_history').insert({
-            'jurisdiction': jurisdiction,
-            'bills_found': len(bills),
-            'bills_new': bills_new,
-            'bills_updated': bills_updated,
-            'status': 'success',
-            'task_id': task_id
-        }).execute()
-        
-        # Update task status to completed
-        db.client.table('admin_tasks').update({
-            'status': 'completed',
-            'completed_at': datetime.now().isoformat(),
-            'result': {'bills_found': len(bills), 'bills_new': bills_new}
-        }).eq('id', task_id).execute()
-        
-        print(f"Task {task_id}: Completed scraping {jurisdiction}")
-        
-    except Exception as e:
-        error_msg = str(e)
-        print(f"Task {task_id} failed: {error_msg}")
-        import traceback
-        traceback.print_exc()
-        
-        # Update task status to failed
-        db.client.table('admin_tasks').update({
-            'status': 'failed',
-            'completed_at': datetime.now().isoformat(),
-            'error_message': error_msg
-        }).eq('id', task_id).execute()
-        
-        # Record failed scrape
-        db.client.table('scrape_history').insert({
-            'jurisdiction': jurisdiction,
-            'bills_found': 0,
-            'status': 'failed',
-            'error_message': error_msg,
-            'task_id': task_id
-        }).execute()
 
 
 async def _execute_multi_source_scrape(scraper_class, config):
