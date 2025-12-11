@@ -40,7 +40,7 @@ class SourceService:
 
     async def create_source(self, source: SourceCreate) -> Dict[str, Any]:
         """Create a new source."""
-        data = source.dict(exclude_none=True)
+        data = source.model_dump(exclude_none=True)
         # Ensure ID is generated if not provided (though Supabase usually handles it, explicit is safe)
         # Actually, let Supabase/Postgres handle UUID generation if default is set, 
         # or generate here. The schema has default gen_random_uuid().
@@ -50,7 +50,7 @@ class SourceService:
 
     async def update_source(self, source_id: str, source: SourceUpdate) -> Dict[str, Any]:
         """Update an existing source."""
-        data = source.dict(exclude_none=True)
+        data = source.model_dump(exclude_none=True)
         if not data:
             return await self.get_source(source_id)
             

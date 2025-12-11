@@ -36,7 +36,7 @@ async def test_get_sources_filtered(mock_supabase):
 async def test_create_source(mock_supabase):
     service = SourceService(mock_supabase)
     new_source = SourceCreate(jurisdiction_id="sanjose", url="http://example.com", type="general")
-    mock_resp = {"id": "1", **new_source.dict()}
+    mock_resp = {"id": "1", **new_source.model_dump()}
     
     # Mock chain: table().insert().execute().data
     mock_supabase.table.return_value.insert.return_value.execute.return_value.data = [mock_resp]

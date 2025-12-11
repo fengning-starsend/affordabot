@@ -14,13 +14,17 @@ async def test_harvester_flow():
     
     # Mock DB
     mock_db = MagicMock()
-    mock_db.client = MagicMock()
+    mock_db.create_admin_task = AsyncMock()
+    mock_db.update_admin_task = AsyncMock()
+    mock_db.create_raw_scrape = AsyncMock(return_value="scrape_123")
+    mock_db._fetch = AsyncMock()
     
     # Mock Sources Response
     mock_sources = [
         {"id": "src_1", "name": "Test Web", "type": "web", "scrape_url": "http://example.com"}
     ]
-    mock_db.client.table().select().eq().execute.return_value.data = mock_sources
+    # The implementation calls await self.db._fetch(...)
+    mock_db._fetch.return_value = mock_sources
     
     # Mock Ingestion Service
     with patch('services.ingestion_service.IngestionService') as MockIngestion, \
@@ -30,6 +34,7 @@ async def test_harvester_flow():
              'llm_common.embeddings.mock': MagicMock(),
              'llm_common.embeddings.openai': MagicMock(),
              'services.storage': MagicMock(),
+             'llm_common.retrieval.pgvector_backend': MagicMock(),
          }):
         
         instance = MockIngestion.return_value
@@ -52,10 +57,12 @@ async def test_harvester_flow():
             runner = UniversalHarvester()
             runner.db = mock_db # Inject mock DB
             
-            # Inject mock for SupabaseDB used inside run() if needed, 
-            # but we patched IngestionService so it shouldn't hit real DB for vector stuff.
-            # We need to mock raw_scrapes insert though.
-            mock_db.client.table().insert().execute.return_value.data = [{"id": "scrape_123"}]
+            # Implementation does NOT use client.table().insert() anymore, it uses process_raw_scrape directly?
+            # Let's check run_universal_harvester.py again. 
+            # It calls await self._process_source -> ... -> but does it insert into raw_scrapes?
+            # The test previously mocked `mock_db.client.table().insert()...`
+            # If the implementation calls that, we need to mock it.
+            # But line 63 of run_universal_harvester calls self._process_source.
             
             await runner.run()
             
