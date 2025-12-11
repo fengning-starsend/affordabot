@@ -60,6 +60,15 @@ class PostgresDB:
         async with self.pool.acquire() as conn:
             return await conn.fetch(query, *args)
 
+    async def get_jurisdiction_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """Get jurisdiction config by name."""
+        try:
+            row = await self._fetchrow("SELECT * FROM jurisdictions WHERE name = $1", name)
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"Error in get_jurisdiction_by_name: {e}")
+            return None
+
     async def get_or_create_jurisdiction(self, name: str, type: str) -> Optional[str]:
         """Get jurisdiction ID, creating if it doesn't exist."""
         try:
@@ -125,6 +134,10 @@ class PostgresDB:
         except Exception as e:
             logger.error(f"Error in store_legislation: {e}")
             return None
+
+    async def create_legislation(self, jurisdiction_id: str, bill_data: Dict[str, Any]) -> Optional[str]:
+        """Alias for store_legislation."""
+        return await self.store_legislation(jurisdiction_id, bill_data)
 
     async def store_impacts(self, legislation_id: str, impacts: List[Dict[str, Any]]) -> bool:
         """Store impact analysis results."""
@@ -253,6 +266,10 @@ class PostgresDB:
         except Exception as e:
             logger.error(f"Error logging scrape history: {e}")
             return False
+
+    async def create_scrape_history(self, **kwargs) -> bool:
+        """Wrapper for log_scrape_history using kwargs."""
+        return await self.log_scrape_history(kwargs)
             
     # RAG Support (Raw Scrapes) - needed for RAG Port but defining now for daily_scrape port
     async def create_raw_scrape(self, scrape_record: Dict[str, Any]) -> Optional[str]:
