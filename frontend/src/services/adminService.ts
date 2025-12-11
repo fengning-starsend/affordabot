@@ -41,6 +41,16 @@ export interface Jurisdiction {
     source_priority?: 'api_first' | 'web_first' | 'api_only' | 'web_only' | 'both_merge';
 }
 
+export interface JurisdictionDashboardStats {
+    jurisdiction: string;
+    last_scrape: string | null;
+    total_raw_scrapes: number;
+    processed_scrapes: number;
+    total_bills: number;
+    pipeline_status: 'healthy' | 'degraded' | 'unknown';
+    active_alerts: string[];
+}
+
 export const adminService = {
     // Sources
     async getSources(): Promise<Source[]> {
@@ -102,6 +112,12 @@ export const adminService = {
             body: JSON.stringify(updates),
         });
         if (!res.ok) throw new Error('Failed to update jurisdiction');
+        return res.json();
+    },
+
+    async getJurisdictionDashboard(id: string): Promise<JurisdictionDashboardStats> {
+        const res = await fetch(`${API_URL}/admin/jurisdiction/${id}/dashboard`);
+        if (!res.ok) throw new Error('Failed to fetch dashboard stats');
         return res.json();
     }
 };
