@@ -897,15 +897,20 @@ async def _run_analysis_task(
             from llm_common.cost_tracker import CostTracker
             
             # Initialize clients
-            db = SupabaseDB().client
+            # Legacy Supabase for auxiliary components (Search/Cost) until llm-common updated
+            supa_db = SupabaseDB().client 
+            # Postgres for AnalysisPipeline storage
+            pg_db = PostgresDB()
+            await pg_db.connect() # Ensure connection
+            
             llm_client = LLMClient()
             search_client = WebSearchClient(
                 api_key=os.getenv("ZAI_API_KEY", ""),
-                supabase_client=db
+                supabase_client=supa_db
             )
-            cost_tracker = CostTracker(supabase_client=db)
+            cost_tracker = CostTracker(supabase_client=supa_db)
             
-            pipeline = AnalysisPipeline(llm_client, search_client, cost_tracker, db)
+            pipeline = AnalysisPipeline(llm_client, search_client, cost_tracker, pg_db)
             
             # Fetch bill text (placeholder)
             # In a real implementation, we'd fetch this from the DB

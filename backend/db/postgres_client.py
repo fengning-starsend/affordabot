@@ -19,7 +19,11 @@ class PostgresDB:
 
     async def connect(self):
         """Explicitly connect/create pool. Helpers will auto-connect if needed."""
-        if not self.pool and self.database_url:
+        if not self.database_url:
+            logger.error("Cannot connect: DATABASE_URL is not set.")
+            raise ValueError("DATABASE_URL is not set")
+
+        if not self.pool:
             try:
                 # Railway internal network doesn't support SSL upgrade
                 # Only use SSL for external connections (Supabase pooler, etc.)
