@@ -69,7 +69,7 @@ class AnalysisPipeline:
         Returns:
             Final analysis (validated BillAnalysis)
         """
-        run_id = await self._create_pipeline_run(bill_id, models)
+        run_id = await self._create_pipeline_run(bill_id, jurisdiction, models)
         
         try:
             # Step 1: Research
@@ -238,14 +238,17 @@ class AnalysisPipeline:
         )
 
     # Database logging methods (placeholders for now, assuming Supabase client structure)
-    async def _create_pipeline_run(self, bill_id: str, models: Dict[str, str]) -> str:
+    async def _create_pipeline_run(self, bill_id: str, jurisdiction: str, models: Dict[str, str]) -> str:
         """Create a new pipeline run record."""
-        # TODO: Implement actual DB call
-        # return self.db.table('pipeline_runs').insert({...}).execute().data[0]['id']
-        return "run_id_placeholder"
+        run_id = await self.db.create_pipeline_run(bill_id, jurisdiction, models)
+        if not run_id:
+            print("WARNING: Failed to create pipeline run in DB")
+            return "run_id_placeholder"
+        return run_id
 
     async def _log_step(self, run_id: str, step_name: str, model: str, data: Any):
         """Log a pipeline step."""
+        # TODO: Implement step logging to DB if needed, currently just stdout
         print(f"Pipeline Run {run_id} Step {step_name}: Completed")
 
     async def _complete_pipeline_run(self, run_id: str, bill_id: str, analysis: BillAnalysis, review: ReviewCritique, jurisdiction: str):
@@ -259,17 +262,13 @@ class AnalysisPipeline:
                 "text": "Full text not available in analysis object", # Ideally fetched from context
                 "status": "analyzed"
             }
-            # Note: store_legislation updates if exists, preserving text if we don't overwrite it?
-            # PostgresDB.store_legislation overwrites text.
-            # Ideally we should fetch existing first or just store impacts if we know leg exists.
-            # But here we want a robust "Ensure Exists" logic.
-            # Let's rely on bill_number matching.
             
             # Lookup jurisdiction ID
             # Assuming passed jurisdiction is name (e.g. "San Jose")
             jurisdiction_id = await self.db.get_or_create_jurisdiction(jurisdiction, "municipality")
             if not jurisdiction_id:
                 print(f"Failed to resolve jurisdiction_id for {jurisdiction}")
+                await self._fail_pipeline_run(run_id, f"Failed to resolve jurisdiction {jurisdiction}")
                 return
 
             legislation_id = await self.db.store_legislation(jurisdiction_id, bill_data)
@@ -280,14 +279,20 @@ class AnalysisPipeline:
                impact_dicts = [i.model_dump() for i in analysis.impacts]
                await self.db.store_impacts(legislation_id, impact_dicts)
                print(f"✅ Stored analysis results for {bill_id}")
+
+               # 3. Mark run as completed in DB
+               await self.db.complete_pipeline_run(run_id, analysis.model_dump())
             else:
                print(f"❌ Failed to store legislation for {bill_id}")
+               await self._fail_pipeline_run(run_id, "Failed to store legislation")
 
         except Exception as e:
             print(f"Failed to store results: {e}")
             import traceback
             traceback.print_exc()
+            await self._fail_pipeline_run(run_id, f"Failed to complete pipeline: {e}")
 
     async def _fail_pipeline_run(self, run_id: str, error: str):
         """Mark pipeline run as failed."""
         print(f"Pipeline Run {run_id} Failed: {error}")
+        await self.db.fail_pipeline_run(run_id, error)
