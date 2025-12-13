@@ -152,3 +152,47 @@ class SupabaseDB:
         ).limit(limit).execute()
         
         return result.data if result.data else []
+
+    async def create_pipeline_run(self, bill_id: str, models: Dict[str, str], jurisdiction: str = None) -> Optional[str]:
+        """Create a new pipeline run."""
+        if not self.client:
+            return None
+
+        result = self.client.table("pipeline_runs").insert({
+            "bill_id": bill_id,
+            "models": models,
+            "jurisdiction": jurisdiction,
+            "status": "running"
+        }).execute()
+
+        return result.data[0]["id"] if result.data else None
+
+    async def log_pipeline_step(self, run_id: str, step_name: str, model: str, data: Any) -> bool:
+        """Log a pipeline step."""
+        if not self.client:
+            return False
+
+        self.client.table("pipeline_steps").insert({
+            "run_id": run_id,
+            "step_name": step_name,
+            "model": model,
+            "data": data
+        }).execute()
+
+        return True
+
+    async def update_pipeline_run_status(self, run_id: str, status: str, error: Optional[str] = None) -> bool:
+        """Update pipeline run status."""
+        if not self.client:
+            return False
+
+        data = {
+            "status": status,
+            "updated_at": datetime.now().isoformat()
+        }
+        if error:
+            data["error"] = error
+
+        self.client.table("pipeline_runs").update(data).eq("id", run_id).execute()
+
+        return True

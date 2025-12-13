@@ -69,7 +69,7 @@ class AnalysisPipeline:
         Returns:
             Final analysis (validated BillAnalysis)
         """
-        run_id = await self._create_pipeline_run(bill_id, models)
+        run_id = await self._create_pipeline_run(bill_id, models, jurisdiction)
         
         try:
             # Step 1: Research
@@ -238,18 +238,28 @@ class AnalysisPipeline:
         )
 
     # Database logging methods (placeholders for now, assuming Supabase client structure)
-    async def _create_pipeline_run(self, bill_id: str, models: Dict[str, str]) -> str:
+    async def _create_pipeline_run(self, bill_id: str, models: Dict[str, str], jurisdiction: str) -> str:
         """Create a new pipeline run record."""
-        # TODO: Implement actual DB call
-        # return self.db.table('pipeline_runs').insert({...}).execute().data[0]['id']
-        return "run_id_placeholder"
+        run_id = await self.db.create_pipeline_run(bill_id, models, jurisdiction)
+        if not run_id:
+            print(f"WARNING: Failed to create pipeline run for {bill_id}. Logging will be disabled.")
+            return "run_id_placeholder"
+        return run_id
 
     async def _log_step(self, run_id: str, step_name: str, model: str, data: Any):
         """Log a pipeline step."""
+        if run_id == "run_id_placeholder":
+            print(f"Pipeline Run (No ID) Step {step_name}: Completed")
+            return
+
+        await self.db.log_pipeline_step(run_id, step_name, model, data)
         print(f"Pipeline Run {run_id} Step {step_name}: Completed")
 
     async def _complete_pipeline_run(self, run_id: str, bill_id: str, analysis: BillAnalysis, review: ReviewCritique, jurisdiction: str):
         """Mark pipeline run as complete and store results."""
+        if run_id != "run_id_placeholder":
+            await self.db.update_pipeline_run_status(run_id, "completed")
+
         try:
             # 1. Store Legislation (Upsert)
             # Use BillAnalysis data + minimal defaults
@@ -290,4 +300,6 @@ class AnalysisPipeline:
 
     async def _fail_pipeline_run(self, run_id: str, error: str):
         """Mark pipeline run as failed."""
+        if run_id != "run_id_placeholder":
+            await self.db.update_pipeline_run_status(run_id, "failed", error)
         print(f"Pipeline Run {run_id} Failed: {error}")
