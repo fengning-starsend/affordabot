@@ -1,81 +1,58 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+# dx-doctor: Fast checks for V3 DX compliance (Affordabot)
 
-echo "DX Doctor — quick preflight"
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RESET='\033[0m'
 
-# Always run from repo root (avoids relative-path confusion for agents).
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-cd "$REPO_ROOT"
+echo "🩺 dx-doctor checking Affordabot environment..."
 
-# 0) Agent bootstrap (idempotent, non-fatal)
-if command -v python3 >/dev/null 2>&1 && [[ -f scripts/cli/agent_bootstrap.py ]]; then
-  python3 scripts/cli/agent_bootstrap.py || true
-fi
+ERRORS=0
 
-# 1) Railway CLI
-if command -v railway >/dev/null 2>&1; then
-  echo "[✓] railway cli: installed"
+# 1. Git Clean Check
+if [ -n "$(git status --porcelain)" ]; then
+    echo -e "${YELLOW}⚠️  Git workspace dirty${RESET}"
+    echo "   Fix: git commit -m \"...\" or git stash"
+    # Not an error, just warning
 else
-  echo "[!] railway cli: missing (install Railway CLI)"
+    echo -e "${GREEN}✅ Git workspace clean${RESET}"
 fi
 
-# 2) Railway env
-if [[ -z "${RAILWAY_ENVIRONMENT:-}" ]]; then
-  echo "[!] Railway env: missing (run 'railway shell' for protected steps)"
+# 2. Beads Sync Check
+if [ -f ".beads/issues.jsonl" ]; then
+    # Simple check if jsonl exists; reliable check requires 'bd status' or similar
+    # We can check if 'bd' is in path
+    if command -v bd &> /dev/null; then
+        echo -e "${GREEN}✅ Beads CLI found${RESET}"
+    else
+        echo -e "${RED}❌ Beads CLI missing${RESET}"
+        echo "   Fix: pip install beads-cli"
+        ERRORS=$((ERRORS+1))
+    fi
+fi
+
+# 3. Railway Shell Check (if RAILWAY_ENVIRONMENT not set)
+if [ -z "$RAILWAY_ENVIRONMENT" ]; then
+    echo -e "${YELLOW}⚠️  Not in Railway shell${RESET}"
+    echo "   Fix: railway shell (for db access)"
 else
-  echo "[✓] Railway env: ${RAILWAY_ENVIRONMENT}"
+    echo -e "${GREEN}✅ Railway environment: $RAILWAY_ENVIRONMENT${RESET}"
 fi
 
-# 3) Git hooks
-if [[ -x .githooks/pre-push ]]; then
-  echo "[✓] Git hooks installed (.githooks/pre-push)"
+# 4. Agent Skills Check (Warn Only)
+if [ -x ~/agent-skills/mcp-doctor/check.sh ]; then
+    echo "Running skills check..."
+    ~/agent-skills/mcp-doctor/check.sh || true
 else
-  echo "[!] Git hooks not installed — run: make setup-git-hooks"
+    echo -e "${YELLOW}⚠️  Skills check script missing${RESET}"
+    echo "   Fix: Ensure ~/agent-skills is mounted and symlinked to ~/.agent/skills"
 fi
 
-# 4) GH auth
-if gh auth status >/dev/null 2>&1; then
-  echo "[✓] gh auth: ok"
+if [ $ERRORS -eq 0 ]; then
+    echo -e "${GREEN}✨ DX Doctor passed (warnings can be ignored)${RESET}"
+    exit 0
 else
-  echo "[!] gh auth: please run 'gh auth login'"
+    echo -e "${RED}❌ DX Doctor found $ERRORS errors${RESET}"
+    exit 1
 fi
-
-# 5) Guardrails stamp
-if [[ -f .command-proof/guardrails.json ]]; then
-  echo "[✓] guardrails stamp present (.command-proof/guardrails.json)"
-else
-  echo "[!] missing guardrails stamp. Run '/sync-i --force true' in CC/OC"
-fi
-
-# 6) Agent Mail (optional)
-if [[ -n "${AGENT_MAIL_URL:-}" && -n "${AGENT_MAIL_BEARER_TOKEN:-}" ]]; then
-  echo "[✓] Agent Mail env: configured"
-else
-  echo "[i] Agent Mail env: not configured yet (coordinator will provide token + setup)"
-fi
-
-# 7) MCP config doctor (optional, from agent-skills)
-if [[ "${DX_SKIP_MCP:-}" == "1" ]]; then
-  echo "[i] mcp-doctor: skipped (DX_SKIP_MCP=1)"
-  echo "Done. If anything above is missing, re-run without DX_SKIP_MCP."
-  exit 0
-fi
-
-SKILLS_DIR="${AGENT_SKILLS_DIR:-}"
-if [[ -z "$SKILLS_DIR" ]]; then
-  if [[ -x "$HOME/.agent/skills/mcp-doctor/check.sh" ]]; then
-    SKILLS_DIR="$HOME/.agent/skills"
-  elif [[ -x "$HOME/agent-skills/mcp-doctor/check.sh" ]]; then
-    SKILLS_DIR="$HOME/agent-skills"
-  else
-    SKILLS_DIR="$HOME/.agent/skills"
-  fi
-fi
-
-if [[ -x "${SKILLS_DIR}/mcp-doctor/check.sh" ]]; then
-  "${SKILLS_DIR}/mcp-doctor/check.sh" || true
-else
-  echo "[i] mcp-doctor: not installed (pull agent-skills)"
-fi
-
-echo "Done. If you saw any ❌/missing items, follow: ${SKILLS_DIR}/mcp-doctor/SKILL.md"
