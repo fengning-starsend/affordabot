@@ -11,8 +11,10 @@ import asyncio
 import logging
 import sys
 
-# Add backend to path
-sys.path.append(os.path.join(os.getcwd(), 'backend'))
+# Add backend to path (resolve relative to script location)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+backend_root = os.path.dirname(os.path.dirname(script_dir)) # backend/scripts/verification -> backend
+sys.path.append(backend_root)
 
 from services.storage.s3_storage import S3Storage
 
