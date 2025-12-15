@@ -4,8 +4,10 @@ from typing import List, Any
 from dataclasses import dataclass
 
 from llm_common import WebSearchResult, LLMClient, LLMMessage, MessageRole
-from llm_common.retrieval import RetrievalBackend
 
+from services.ingestion_service import IngestionService
+from services.discovery.search_discovery import SearchDiscoveryService
+from services.retrieval.custom_pgvector_backend import CustomPgVectorBackend
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +28,9 @@ class SearchPipelineService:
 
     def __init__(
         self,
-        discovery: Any,
-        ingestion: Any,
-        retrieval: RetrievalBackend,
+        discovery: SearchDiscoveryService,
+        ingestion: IngestionService,
+        retrieval: CustomPgVectorBackend, # Custom backend for Affordabot
         llm: LLMClient
     ):
         self.discovery = discovery
@@ -87,7 +89,7 @@ class SearchPipelineService:
         # Let's search specifically within these documents if possible, or global?
         # Global is better if we have historical data. 
         # But for specific "Search" query, we want the fresh results.
-        # RetrievalBackend.retrieve doesn't typically support 'filter by doc_ids' in pure semantic search 
+        # SupabasePgVectorBackend.query doesn't typically support 'filter by doc_ids' in pure semantic search
         # unless we implemented metadata filtering.
         # Let's assume global search for now, picking up new chunks because they embed similarly to query.
         
