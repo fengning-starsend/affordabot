@@ -55,7 +55,7 @@ def analyzer(mock_research_package):
     """
     with patch("services.llm.pipeline.ZaiResearchService") as MockResearcher, \
          patch("services.llm.pipeline.instructor.from_openai") as mock_from_openai, \
-         patch("services.llm.pipeline.AsyncOpenAI") as mock_openai:
+         patch("services.llm.pipeline.AsyncOpenAI"):
         
         # Setup Researcher Mock
         mock_researcher_instance = MockResearcher.return_value
