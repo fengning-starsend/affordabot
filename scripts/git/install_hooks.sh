@@ -13,6 +13,8 @@ if [ ! -d "$ROOT_DIR/.githooks" ]; then
 fi
 
 git config core.hooksPath .githooks
+git config merge.jsonl.name "Custom merge driver for JSONL files"
+git config merge.jsonl.driver "bd merge %A %O %B %P"
 chmod -R +x .githooks || true
 echo "✅ Git hooks installed"
 echo "   - Using hooksPath: .githooks"

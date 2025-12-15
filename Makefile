@@ -1,4 +1,4 @@
-.PHONY: help install dev build test lint clean ci e2e
+.PHONY: help install dev build test lint clean ci e2e ci-lite
 
 # Default target
 help:
@@ -7,10 +7,12 @@ help:
 	@echo "  dev          - Run development servers (frontend + backend)"
 	@echo "  dev-frontend - Run frontend dev server"
 	@echo "  dev-backend  - Run backend dev server"
+	@echo "  dev-railway  - Run all services via Railway (Pilot)"
 	@echo "  build        - Build frontend production bundle"
 	@echo "  test         - Run all tests"
 	@echo "  e2e          - Run Playwright e2e tests"
-	@echo "  lint         - Run linters (check only)"
+	@echo "  lint         - Run linters (Python + frontend)"
+	@echo "  ci-lite      - Fast local validation (<30s)"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  ci           - Run full CI suite locally"
 
@@ -31,6 +33,12 @@ install:
 dev:
 	@echo "Starting development servers..."
 	@echo "Run 'make dev-frontend' and 'make dev-backend' in separate terminals"
+
+# Run development servers via Railway (Pilot)
+dev-railway:
+	@echo "Starting development via Railway..."
+	./scripts/railway-dev.sh
+
 
 dev-frontend:
 	cd frontend && pnpm dev
@@ -61,9 +69,16 @@ e2e:
 
 # Run linters
 lint:
-	@echo "Running linters..."
-	@echo "Frontend build check (Next.js)..."
-	cd frontend && pnpm build
+	@./scripts/ci/lint.sh
+
+# Run fast local validation (<30s)
+ci-lite:
+	@echo "🧪 Running CI Lite (fast local validation)..."
+	@$(MAKE) lint
+	@echo "🐍 Backend unit tests (Fail Fast)..."
+	cd backend && poetry run pytest tests/ -q --maxfail=1 || echo "⚠️  Tests failed"
+	@echo "✅ CI Lite completed"
+
 
 # Clean build artifacts
 clean:

@@ -12,18 +12,8 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Trash2, Edit } from "lucide-react"
-
-interface Source {
-    id: string
-    jurisdiction_id: string
-    url: string
-    type: string
-    status: string
-    source_method: string
-    handler?: string
-    last_scraped_at?: string
-}
+import { Plus, Search, Trash2, Edit, RefreshCw } from "lucide-react"
+import { adminService, Source } from "@/services/adminService"
 
 export default function SourcesPage() {
     const [sources, setSources] = useState<Source[]>([])
@@ -35,9 +25,9 @@ export default function SourcesPage() {
     }, [])
 
     const fetchSources = async () => {
+        setLoading(true)
         try {
-            const res = await fetch("http://localhost:8000/sources/")
-            const data = await res.json()
+            const data = await adminService.getSources()
             setSources(data)
         } catch (error) {
             console.error("Failed to fetch sources:", error)
@@ -49,7 +39,7 @@ export default function SourcesPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure you want to delete this source?")) return
         try {
-            await fetch(`http://localhost:8000/sources/${id}`, { method: "DELETE" })
+            await adminService.deleteSource(id)
             fetchSources()
         } catch (error) {
             console.error("Failed to delete source:", error)
@@ -65,9 +55,14 @@ export default function SourcesPage() {
         <div className="p-8 space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold tracking-tight">Source Management</h1>
-                <Button>
-                    <Plus className="mr-2 h-4 w-4" /> Add Source
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={fetchSources}>
+                        <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+                    </Button>
+                    <Button>
+                        <Plus className="mr-2 h-4 w-4" /> Add Source
+                    </Button>
+                </div>
             </div>
 
             <div className="flex items-center space-x-2">

@@ -7,19 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, Globe, Database, Server } from 'lucide-react';
-
-interface Jurisdiction {
-    id: string;
-    name: string;
-    type: string;
-    scrape_url?: string;
-    api_type?: 'openstates' | 'legistar' | null;
-    api_key_env?: string;
-    openstates_jurisdiction_id?: string;
-    scraper_class?: string;
-    use_web_scraper_fallback?: boolean;
-    source_priority?: 'api_first' | 'web_first' | 'api_only' | 'web_only' | 'both_merge';
-}
+import { adminService, Jurisdiction } from '@/services/adminService';
 
 export function JurisdictionMapper() {
     const [jurisdictions, setJurisdictions] = useState<Jurisdiction[]>([]);
@@ -35,9 +23,7 @@ export function JurisdictionMapper() {
     const fetchJurisdictions = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/admin/jurisdictions');
-            if (!response.ok) throw new Error('Failed to fetch jurisdictions');
-            const data = await response.json();
+            const data = await adminService.getJurisdictions();
             setJurisdictions(data);
         } catch (err) {
             setError('Failed to load jurisdictions');
@@ -53,15 +39,8 @@ export function JurisdictionMapper() {
             setError(null);
             setSuccess(null);
 
-            const response = await fetch(`/api/admin/jurisdictions/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates),
-            });
+            const updated = await adminService.updateJurisdiction(id, updates);
 
-            if (!response.ok) throw new Error('Failed to update jurisdiction');
-
-            const updated = await response.json();
             setJurisdictions(jurisdictions.map(j => j.id === id ? updated : j));
             setSuccess(`Updated ${updated.name} successfully`);
 
@@ -159,9 +138,7 @@ export function JurisdictionMapper() {
                                     <Input
                                         value={jur.scraper_class || ''}
                                         onChange={(e) => {
-                                            // Local update only, save on blur or enter? 
-                                            // For simplicity, we'll just show current value. 
-                                            // Real implementation might want a debounced save or explicit save button.
+                                            // Local update only
                                         }}
                                         onBlur={(e) => handleUpdate(jur.id, { scraper_class: e.target.value })}
                                         placeholder="e.g. SanJoseScraper"

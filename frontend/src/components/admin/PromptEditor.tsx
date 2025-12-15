@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     FileText,
+    FileSearch,
     Loader2,
     Save,
     History,
@@ -18,7 +19,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PromptConfig {
-    prompt_type: 'generation' | 'review';
+    prompt_type: 'generation' | 'review' | 'research';
     system_prompt: string;
     updated_at: string;
     updated_by: string;
@@ -26,9 +27,10 @@ interface PromptConfig {
 }
 
 export function PromptEditor() {
-    const [activePromptType, setActivePromptType] = useState<'generation' | 'review'>('generation');
+    const [activePromptType, setActivePromptType] = useState<'generation' | 'review' | 'research'>('generation');
     const [generationPrompt, setGenerationPrompt] = useState<PromptConfig | null>(null);
     const [reviewPrompt, setReviewPrompt] = useState<PromptConfig | null>(null);
+    const [researchPrompt, setResearchPrompt] = useState<PromptConfig | null>(null);
     const [editedPrompt, setEditedPrompt] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -42,11 +44,15 @@ export function PromptEditor() {
 
     // Track changes
     useEffect(() => {
-        const currentPrompt = activePromptType === 'generation' ? generationPrompt : reviewPrompt;
-        setHasChanges(currentPrompt ? editedPrompt !== currentPrompt.system_prompt : false);
-    }, [editedPrompt, generationPrompt, reviewPrompt, activePromptType]);
+        let currentPrompt: PromptConfig | null = null;
+        if (activePromptType === 'generation') currentPrompt = generationPrompt;
+        else if (activePromptType === 'review') currentPrompt = reviewPrompt;
+        else currentPrompt = researchPrompt;
 
-    const loadPrompt = async (type: 'generation' | 'review') => {
+        setHasChanges(currentPrompt ? editedPrompt !== currentPrompt.system_prompt : false);
+    }, [editedPrompt, generationPrompt, reviewPrompt, researchPrompt, activePromptType]);
+
+    const loadPrompt = async (type: 'generation' | 'review' | 'research') => {
         setIsLoading(true);
         setAlert(null);
 
@@ -58,8 +64,10 @@ export function PromptEditor() {
 
             if (type === 'generation') {
                 setGenerationPrompt(data);
-            } else {
+            } else if (type === 'review') {
                 setReviewPrompt(data);
+            } else {
+                setResearchPrompt(data);
             }
 
             setEditedPrompt(data.system_prompt);
@@ -109,14 +117,23 @@ export function PromptEditor() {
     };
 
     const handleReset = () => {
-        const currentPrompt = activePromptType === 'generation' ? generationPrompt : reviewPrompt;
+        let currentPrompt: PromptConfig | null = null;
+        if (activePromptType === 'generation') currentPrompt = generationPrompt;
+        else if (activePromptType === 'review') currentPrompt = reviewPrompt;
+        else currentPrompt = researchPrompt;
+
         if (currentPrompt) {
             setEditedPrompt(currentPrompt.system_prompt);
             setHasChanges(false);
         }
     };
 
-    const currentPrompt = activePromptType === 'generation' ? generationPrompt : reviewPrompt;
+
+
+    let currentPrompt: PromptConfig | null = null;
+    if (activePromptType === 'generation') currentPrompt = generationPrompt;
+    else if (activePromptType === 'review') currentPrompt = reviewPrompt;
+    else currentPrompt = researchPrompt;
 
     return (
         <div className="space-y-6">
@@ -163,6 +180,10 @@ export function PromptEditor() {
                             <TabsTrigger value="review" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                                 <CheckCircle2 className="w-4 h-4 mr-2" />
                                 Review
+                            </TabsTrigger>
+                            <TabsTrigger value="research" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                                <FileSearch className="w-4 h-4 mr-2" />
+                                Research
                             </TabsTrigger>
                         </TabsList>
 
@@ -214,6 +235,36 @@ export function PromptEditor() {
                                         />
                                         <p className="text-xs text-gray-500">
                                             This prompt guides the LLM when reviewing generated analyses
+                                        </p>
+                                    </div>
+
+                                    {currentPrompt && (
+                                        <div className="text-sm text-gray-500">
+                                            Last updated: {new Date(currentPrompt.updated_at).toLocaleString()}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="research" className="space-y-4 mt-4">
+                            {isLoading ? (
+                                <div className="text-center py-8">
+                                    <Loader2 className="w-8 h-8 mx-auto text-purple-500 animate-spin" />
+                                    <p className="text-gray-500 mt-2">Loading prompt...</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-700">System Prompt</Label>
+                                        <Textarea
+                                            value={editedPrompt}
+                                            onChange={(e) => setEditedPrompt(e.target.value)}
+                                            placeholder="Enter system prompt for research..."
+                                            className="min-h-[300px] bg-white/50 border-gray-200 text-gray-900 placeholder:text-gray-400 font-mono text-sm"
+                                        />
+                                        <p className="text-xs text-gray-500">
+                                            This prompt guides the LLM when gathering research and context
                                         </p>
                                     </div>
 

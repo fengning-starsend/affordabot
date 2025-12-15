@@ -7,40 +7,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlayCircle, Loader2, CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { PlayCircle, Loader2, CheckCircle2, XCircle, Clock, AlertCircle, Check, ChevronsUpDown } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-
-const JURISDICTIONS = [
-    { value: 'san_jose', label: 'San Jose' },
-    { value: 'saratoga', label: 'Saratoga' },
-    { value: 'santa_clara_county', label: 'Santa Clara County' },
-    { value: 'california_state', label: 'California State' },
-];
-
-interface ScrapeTask {
-    task_id: string;
-    jurisdiction: string;
-    status: 'queued' | 'running' | 'completed' | 'failed';
-    message: string;
-    timestamp: string;
-}
-
-interface ScrapeHistory {
-    id: string;
-    jurisdiction: string;
-    timestamp: string;
-    bills_found: number;
-    status: 'success' | 'partial' | 'failed';
-    error?: string;
-}
+import { adminService, ScrapeTask, ScrapeHistory, Jurisdiction } from '@/services/adminService';
+import { cn } from "@/lib/utils";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export function ScrapeManager() {
     const [jurisdiction, setJurisdiction] = useState<string>('');
+    const [jurisdictions, setJurisdictions] = useState<Jurisdiction[]>([]);
+    const [open, setOpen] = useState(false);
     const [force, setForce] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [activeTasks, setActiveTasks] = useState<ScrapeTask[]>([]);
     const [history, setHistory] = useState<ScrapeHistory[]>([]);
     const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
 
     // Poll active tasks
     useEffect(() => {
@@ -51,9 +34,7 @@ export function ScrapeManager() {
                 if (task.status === 'completed' || task.status === 'failed') return task;
 
                 try {
-                    const response = await fetch(`/api/admin/tasks/${task.task_id}`);
-                    if (!response.ok) return task;
-                    const data = await response.json();
+                    const data = await adminService.getTaskStatus(task.task_id);
 
                     // If status changed to completed/failed, show alert and refresh history
                     if (data.status !== task.status) {
@@ -61,7 +42,7 @@ export function ScrapeManager() {
                             setAlert({ type: 'success', message: `Scrape completed for ${task.jurisdiction}` });
                             fetchHistory();
                         } else if (data.status === 'failed') {
-                            setAlert({ type: 'error', message: `Scrape failed for ${task.jurisdiction}: ${data.error_message}` });
+                            setAlert({ type: 'error', message: `Scrape failed for ${task.jurisdiction}` });
                         }
                     }
 
@@ -88,18 +69,25 @@ export function ScrapeManager() {
         return () => clearInterval(interval);
     }, [activeTasks]);
 
-    // Load history on mount
+    // Load history and jurisdictions on mount
     useEffect(() => {
         fetchHistory();
+        fetchJurisdictions();
     }, []);
+
+    const fetchJurisdictions = async () => {
+        try {
+            const data = await adminService.getJurisdictions();
+            setJurisdictions(data);
+        } catch (error) {
+            console.error('Failed to fetch jurisdictions:', error);
+        }
+    };
 
     const fetchHistory = async () => {
         try {
-            const response = await fetch('/api/admin/scrapes');
-            if (response.ok) {
-                const data = await response.json();
-                setHistory(data);
-            }
+            const data = await adminService.getScrapeHistory();
+            setHistory(data);
         } catch (error) {
             console.error('Failed to fetch history:', error);
         }
@@ -115,15 +103,7 @@ export function ScrapeManager() {
         setAlert(null);
 
         try {
-            const response = await fetch('/api/admin/scrape', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jurisdiction, force }),
-            });
-
-            if (!response.ok) throw new Error('Failed to trigger scrape');
-
-            const data = await response.json();
+            const data = await adminService.triggerScrape(jurisdiction, force);
 
             // Add to active tasks
             setActiveTasks(prev => [
@@ -206,18 +186,49 @@ export function ScrapeManager() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700">Jurisdiction</label>
-                            <Select value={jurisdiction} onValueChange={setJurisdiction}>
-                                <SelectTrigger className="bg-white/50 border-gray-200 text-gray-900">
-                                    <SelectValue placeholder="Select jurisdiction" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {JURISDICTIONS.map(j => (
-                                        <SelectItem key={j.value} value={j.value}>
-                                            {j.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Popover open={open} onOpenChange={setOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={open}
+                                        className="w-full justify-between bg-white/50 border-gray-200 text-gray-900"
+                                    >
+                                        {jurisdiction
+                                            ? jurisdictions.find((j) => j.name === jurisdiction)?.name
+                                            : "Select jurisdiction..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[300px] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Search jurisdiction..." />
+                                        <CommandList>
+                                            <CommandEmpty>No jurisdiction found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {jurisdictions.map((j) => (
+                                                    <CommandItem
+                                                        key={j.id}
+                                                        value={j.name}
+                                                        onSelect={(currentValue) => {
+                                                            setJurisdiction(currentValue === jurisdiction ? "" : currentValue)
+                                                            setOpen(false)
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                jurisdiction === j.name ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {j.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
 
                         <div className="flex items-end">
@@ -356,4 +367,3 @@ export function ScrapeManager() {
         </div>
     );
 }
-

@@ -4,7 +4,11 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 class SupabaseDB:
-    def __init__(self):
+    def __init__(self, client: Optional[Client] = None):
+        if client:
+            self.client = client
+            return
+
         url = os.getenv("SUPABASE_URL")
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         
@@ -37,6 +41,10 @@ class SupabaseDB:
         """Store legislation in database."""
         if not self.client:
             return None
+        
+        # Serialize date objects if present
+        if "introduced_date" in bill_data and hasattr(bill_data["introduced_date"], "isoformat"):
+            bill_data["introduced_date"] = bill_data["introduced_date"].isoformat()
         
         # Check if exists
         existing = self.client.table("legislation").select("id").eq(
@@ -103,6 +111,67 @@ class SupabaseDB:
         
         return True
     
+    async def create_pipeline_run(self, bill_id: str, jurisdiction: str, models: Dict[str, str]) -> Optional[str]:
+        """Create a new pipeline run record."""
+        if not self.client:
+            return None
+
+        result = self.client.table("pipeline_runs").insert({
+            "bill_id": bill_id,
+            "jurisdiction": jurisdiction,
+            "models": models,
+            "started_at": datetime.now().isoformat()
+        }).execute()
+
+        return result.data[0]["id"] if result.data else None
+
+    async def complete_pipeline_run(self, run_id: str, result: Dict[str, Any]) -> bool:
+        """Mark pipeline run as complete."""
+        if not self.client:
+            return False
+
+        self.client.table("pipeline_runs").update({
+            "status": "completed",
+            "result": result,
+            "completed_at": datetime.now().isoformat()
+        }).eq("id", run_id).execute()
+
+        return True
+
+    async def fail_pipeline_run(self, run_id: str, error: str) -> bool:
+        """Mark pipeline run as failed."""
+        if not self.client:
+            return False
+
+        self.client.table("pipeline_runs").update({
+            "status": "failed",
+            "error": error,
+            "completed_at": datetime.now().isoformat()
+        }).eq("id", run_id).execute()
+
+        return True
+
+    async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str, url: Optional[str] = None) -> Optional[str]:
+        """Get source ID, creating if it doesn't exist."""
+        if not self.client:
+            return None
+            
+        # Check if exists
+        result = self.client.table("sources").select("id").eq("jurisdiction_id", jurisdiction_id).eq("name", name).execute()
+        
+        if result.data:
+            return result.data[0]["id"]
+            
+        # Create new
+        result = self.client.table("sources").insert({
+            "jurisdiction_id": jurisdiction_id,
+            "name": name,
+            "type": type,
+            "url": url
+        }).execute()
+        
+        return result.data[0]["id"] if result.data else None
+
     async def get_legislation_by_jurisdiction(self, jurisdiction_name: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Get recent legislation for a jurisdiction with impacts."""
         if not self.client:

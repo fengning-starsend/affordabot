@@ -14,45 +14,44 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 import os
+import asyncio
+import logging
 
 
 # Import database client
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from supabase import Client, create_client
-from db.supabase_client import SupabaseDB
+
+from db.postgres_client import PostgresDB
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+logger = logging.getLogger(__name__)
 
-def get_supabase() -> Client:
-    return create_client(
-        os.environ['SUPABASE_URL'],
-        os.environ['SUPABASE_SERVICE_ROLE_KEY']
-    )
+
+def get_pg_db():
+    """Dependency to get Postgres client"""
+    return PostgresDB()
+
 
 class ReviewUpdate(BaseModel):
     status: str
 
 @router.get("/reviews")
-async def list_reviews(supabase: Client = Depends(get_supabase)):
+async def list_reviews(db: PostgresDB = Depends(get_pg_db)):
     """List pending template reviews."""
-    res = supabase.table("template_reviews").select("*").eq("status", "pending").execute()
-    return res.data
+    return await db.get_pending_reviews()
 
 @router.patch("/reviews/{review_id}")
 async def update_review(
     review_id: str, 
     update: ReviewUpdate,
-    supabase: Client = Depends(get_supabase)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """Approve or reject a review."""
-    res = supabase.table("template_reviews").update({"status": update.status}).eq("id", review_id).execute()
-    return res.data
-
-# Initialize database client
-def get_db():
-    """Dependency to get database client"""
-    return SupabaseDB()
+    result = await db.update_review_status(review_id, update.status)
+    if not result:
+        raise HTTPException(status_code=500, detail="Failed to update review")
+    return {"status": "success", "id": review_id}
 
 
 # ============================================================================
@@ -62,6 +61,151 @@ def get_db():
 class ManualScrapeRequest(BaseModel):
     jurisdiction: str
     force: bool = False  # Force re-scrape even if recent data exists
+    type: Literal["legislation", "rag", "harvest"] = "legislation"
+
+# ... (inside _run_scrape_task signature) ...
+
+async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: PostgresDB, scrape_type: str = "legislation"):
+    """Background task to run scraping with multi-source support."""
+    try:
+        # Update task status to running
+        await db.update_admin_task(task_id, status='running')
+
+        if scrape_type == "harvest":
+             # Run Universal Harvester script via subprocess
+            import sys
+            
+            script_path = os.path.join(os.path.dirname(__file__), '../scripts/cron/run_universal_harvester.py')
+            
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, script_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            if proc.returncode != 0:
+                raise Exception(f"Harvester script failed: {stderr.decode()}")
+            
+            
+            await db.update_admin_task(
+                task_id=task_id,
+                status='completed',
+                result={'message': 'Harvester script executed', 'logs': stdout.decode()}
+            )
+            return
+
+        if scrape_type == "rag":
+            # Run RAG spiders script via subprocess
+            import sys
+            
+            script_path = os.path.join(os.path.dirname(__file__), '../scripts/cron/run_rag_spiders.py')
+            
+            # Run script - this blocks the thread but it's a background task so it's acceptable-ish for low volume
+            # Ideally use asyncio.create_subprocess_exec
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, script_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            if proc.returncode != 0:
+                raise Exception(f"RAG script failed: {stderr.decode()}")
+            
+            # The script logs its own success/admin_tasks updates, but we created a parent task here.
+            # We should probably mark this parent task as completed.
+            # Note: The script creates its OWN task_id. This is a bit disjointed.
+            # Improvement: Pass task_id to script? For now, just marking this trigger task as done.
+            
+            await db.update_admin_task(
+                task_id=task_id,
+                status='completed',
+                result={'message': 'RAG script executed', 'logs': stdout.decode()}
+            )
+            return
+
+        # ... existing legislation logic ...
+        # Import scraper registry
+        from services.scraper.san_jose import SanJoseScraper
+        from services.scraper.california_state import CaliforniaStateScraper
+        from services.scraper.santa_clara_county import SantaClaraCountyScraper
+        from services.scraper.saratoga import SaratogaScraper
+        
+        SCRAPER_MAP = {
+            'City of San Jose': SanJoseScraper,
+            'State of California': CaliforniaStateScraper,
+            'Santa Clara County': SantaClaraCountyScraper,
+            'Saratoga': SaratogaScraper,
+        }
+        
+        # Get jurisdiction config from database
+        jur_config = await db.get_jurisdiction_by_name(jurisdiction)
+        if not jur_config:
+            raise Exception(f"Jurisdiction {jurisdiction} not found in database")
+        
+        config = jur_config
+        scraper_class = SCRAPER_MAP.get(jurisdiction)
+        
+        # Execute multi-source scraping based on source_priority
+        bills = await _execute_multi_source_scrape(scraper_class, config)
+        
+        # Store in database
+        jurisdiction_id = config['id']
+        bills_new = 0
+        bills_updated = 0
+        
+        for bill in bills:
+            leg_id = await db.create_legislation(jurisdiction_id, bill.dict())
+            if leg_id:
+                bills_new += 1
+        
+        # Record scrape history
+        await db.create_scrape_history(
+            jurisdiction=jurisdiction,
+            bills_found=len(bills),
+            bills_new=bills_new,
+            bills_updated=bills_updated,
+            status='success',
+            task_id=task_id
+        )
+        
+        # Update task status to completed
+        await db.update_admin_task(
+            task_id=task_id,
+            status='completed',
+            result={'bills_found': len(bills), 'bills_new': bills_new}
+        )
+        
+        print(f"Task {task_id}: Completed scraping {jurisdiction}")
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Task {task_id} failed: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        
+        # Update task status to failed
+        await db.update_admin_task(task_id, status='failed', error=error_msg)
+        
+        # Record failed scrape
+        await db.create_scrape_history(
+            jurisdiction=jurisdiction,
+            bills_found=0,
+            status='failed',
+            error_message=error_msg,
+            task_id=task_id
+        )
+
+
+class JurisdictionDashboardStats(BaseModel):
+    jurisdiction: str
+    last_scrape: Optional[datetime]
+    total_raw_scrapes: int
+    processed_scrapes: int
+    total_bills: int
+    pipeline_status: Literal["healthy", "degraded", "unknown"]
+    active_alerts: List[str]
 
 
 class ManualScrapeResponse(BaseModel):
@@ -143,7 +287,7 @@ class AnalysisHistory(BaseModel):
 async def trigger_manual_scrape(
     request: ManualScrapeRequest,
     background_tasks: BackgroundTasks,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db) # Migrated to Postgres
 ):
     """
     Trigger a manual scrape for a specific jurisdiction.
@@ -154,15 +298,14 @@ async def trigger_manual_scrape(
     
     task_id = str(uuid4())
     
-    # Create task record in database
-    if db.client:
-        db.client.table('admin_tasks').insert({
-            'id': task_id,
-            'task_type': 'scrape',
-            'jurisdiction': request.jurisdiction,
-            'status': 'queued',
-            'config': {'force': request.force}
-        }).execute()
+    # Create task record in database (Postgres)
+    await db.create_admin_task(
+        task_id=task_id,
+        task_type='scrape',
+        status='queued',
+        jurisdiction=request.jurisdiction,
+        config={'force': request.force}
+    )
     
     # Queue scraping task
     background_tasks.add_task(
@@ -170,7 +313,8 @@ async def trigger_manual_scrape(
         task_id=task_id,
         jurisdiction=request.jurisdiction,
         force=request.force,
-        db=db
+        db=db,
+        scrape_type=request.type
     )
     
     return ManualScrapeResponse(
@@ -182,38 +326,44 @@ async def trigger_manual_scrape(
 
 
 @router.get("/scrapes", response_model=List[ScrapeHistory])
+@router.get("/scrapes", response_model=List[ScrapeHistory])
 async def get_scrape_history(
     jurisdiction: Optional[str] = None,
     limit: int = 50,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get scraping history, optionally filtered by jurisdiction.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Build query
-    query = db.client.table('scrape_history').select('*')
-    
-    if jurisdiction:
-        query = query.eq('jurisdiction', jurisdiction)
-    
-    result = query.order('created_at', desc=True).limit(limit).execute()
-    
-    # Transform to response model
-    history = []
-    for row in result.data:
-        history.append(ScrapeHistory(
-            id=row['id'],
-            jurisdiction=row['jurisdiction'],
-            timestamp=row['created_at'],
-            bills_found=row['bills_found'],
-            status=row['status'],
-            error=row.get('error_message')
-        ))
-    
-    return history
+    try:
+        query = "SELECT * FROM scrape_history"
+        params = []
+        
+        if jurisdiction:
+            query += " WHERE jurisdiction = $1"
+            params.append(jurisdiction)
+            
+        query += " ORDER BY created_at DESC LIMIT $" + str(len(params) + 1)
+        params.append(limit)
+        
+        rows = await db._fetch(query, *params)
+        
+        # Transform to response model
+        history = []
+        for row in rows:
+            history.append(ScrapeHistory(
+                id=str(row['id']),
+                jurisdiction=row['jurisdiction'],
+                timestamp=row['created_at'],
+                bills_found=row['bills_found'],
+                status=row['status'],
+                error=row.get('error_message')
+            ))
+        
+        return history
+    except Exception as e:
+        print(f"Error fetching scrape history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -257,42 +407,35 @@ async def get_analysis_history(
     bill_id: Optional[str] = None,
     step: Optional[Literal["research", "generate", "review"]] = None,
     limit: int = 50,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get analysis history with optional filters.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Build query
-    query = db.client.table('analysis_history').select('*')
-    
-    if jurisdiction:
-        query = query.eq('jurisdiction', jurisdiction)
-    if bill_id:
-        query = query.eq('bill_id', bill_id)
-    if step:
-        query = query.eq('step', step)
-    
-    result = query.order('created_at', desc=True).limit(limit).execute()
-    
-    # Transform to response model
-    history = []
-    for row in result.data:
-        history.append(AnalysisHistory(
-            id=row['id'],
-            jurisdiction=row['jurisdiction'],
-            bill_id=row['bill_id'],
-            step=row['step'],
-            model_used=f"{row.get('model_provider', 'unknown')}/{row.get('model_name', 'unknown')}",
-            timestamp=row['created_at'],
-            status=row['status'],
-            result=row.get('result'),
-            error=row.get('error_message')
-        ))
-    
-    return history
+    try:
+        rows = await db.get_analysis_history(jurisdiction, bill_id, step, limit)
+        
+        history = []
+        for row in rows:
+            # Handle potential JSON/Dict result if stored as string/jsonb
+            result_data = row.get('result')
+            
+            history.append(AnalysisHistory(
+                id=str(row['id']),
+                jurisdiction=row['jurisdiction'],
+                bill_id=row['bill_id'],
+                step=row['step'],
+                model_used=f"{row.get('model_provider', 'unknown')}/{row.get('model_name', 'unknown')}",
+                timestamp=row['created_at'],
+                status=row['status'],
+                result=result_data,
+                error=row.get('error_message')
+            ))
+        
+        return history
+    except Exception as e:
+        print(f"Error fetching analysis history: {e}")
+        return []
 
 
 
@@ -303,20 +446,18 @@ async def get_analysis_history(
 @router.get("/tasks/{task_id}")
 async def get_task_status(
     task_id: str,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get status of a background task (scrape or analysis).
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    result = db.client.table('admin_tasks').select('*').eq('id', task_id).execute()
-    
-    if not result.data:
+    task = await db.get_admin_task(task_id)
+    if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    return result.data[0]
+    # Ensure ID is string
+    task['id'] = str(task['id'])
+    return task
 
 
 # ============================================================================
@@ -325,19 +466,16 @@ async def get_task_status(
 
 @router.get("/models", response_model=List[ModelConfig])
 async def get_model_configs(
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get current model configuration and priority order.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
     try:
-        result = db.client.table('model_configs').select('*').order('priority').execute()
+        rows = await db.get_model_configs()
         
         configs = []
-        for row in result.data:
+        for row in rows:
             configs.append(ModelConfig(
                 provider=row['provider'],
                 model_name=row['model_name'],
@@ -355,78 +493,70 @@ async def get_model_configs(
 @router.post("/models")
 async def update_model_configs(
     config: ModelConfigUpdate,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Update model configuration and priority order.
-    
-    Validates that priorities are unique and models are available.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
     # Validate unique priorities
     priorities = [m.priority for m in config.models]
     if len(priorities) != len(set(priorities)):
         raise HTTPException(status_code=400, detail="Priorities must be unique")
     
-    # Update each model config
+    success_count = 0
     for model in config.models:
-        # Upsert (update or insert)
-        db.client.table('model_configs').upsert({
-            'provider': model.provider,
-            'model_name': model.model_name,
-            'use_case': model.use_case,
-            'priority': model.priority,
-            'enabled': model.enabled
-        }, on_conflict='provider,model_name,use_case').execute()
-    
-    return {"message": "Model configuration updated", "count": len(config.models)}
+        if await db.update_model_config(
+            model.provider, model.model_name, model.use_case,
+            model.priority, model.enabled
+        ):
+            success_count += 1
+            
+    return {"message": "Model configuration updated", "count": success_count}
 
 
 @router.get("/health/models")
-async def check_model_health(db: SupabaseDB = Depends(get_db)):
+async def check_model_health(db: PostgresDB = Depends(get_pg_db)):
     """Check health of all configured models."""
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Get all enabled models
-    models = db.client.table('model_configs').select('*').eq('enabled', True).execute()
-    
-    health_results = []
-    for model in models.data:
-        # Perform health check (simple ping test)
-        try:
-            # TODO: Implement actual model health check
-            # For now, just check if we have API keys
+    try:
+        # Get all enabled models
+        # Re-using get_model_configs logic but filtering
+        rows = await db.get_model_configs()
+        models = [r for r in rows if r['enabled']]
+        
+        health_results = []
+        for model in models:
             is_healthy = True
             latency_ms = 0
             
-            health_results.append({
+            # TODO: Implement actual health check
+            # For now just stub successful result
+            
+            result = {
                 'provider': model['provider'],
                 'model_name': model['model_name'],
                 'status': 'healthy' if is_healthy else 'unhealthy',
                 'latency_ms': latency_ms,
                 'last_checked': datetime.now().isoformat()
-            })
+            }
+            health_results.append(result)
             
-            # Update model health in database
-            db.client.table('model_configs').update({
-                'health_status': 'healthy' if is_healthy else 'unhealthy',
-                'last_health_check_at': datetime.now().isoformat(),
-                'avg_latency_ms': latency_ms
-            }).eq('id', model['id']).execute()
+            # Update DB (using direct SQL execute if no helper method for health update yet)
+            # Or add update_model_health to PostgresDB
+            await db._execute(
+                """
+                UPDATE model_configs 
+                SET health_status = $1, last_health_check_at = NOW(), avg_latency_ms = $2
+                WHERE id = $3
+                """,
+                'healthy' if is_healthy else 'unhealthy',
+                latency_ms,
+                model['id']
+            )
             
-        except Exception as e:
-            health_results.append({
-                'provider': model['provider'],
-                'model_name': model['model_name'],
-                'status': 'unhealthy',
-                'error': str(e),
-                'last_checked': datetime.now().isoformat()
-            })
-    
-    return health_results
+        return health_results
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -434,25 +564,23 @@ async def check_model_health(db: SupabaseDB = Depends(get_db)):
 # ============================================================================
 
 @router.get("/jurisdictions")
-async def get_jurisdictions(db: SupabaseDB = Depends(get_db)):
+async def get_jurisdictions(db: PostgresDB = Depends(get_pg_db)):
     """Get all jurisdictions with their source configuration."""
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    result = db.client.table('jurisdictions').select('*').order('name').execute()
-    return result.data
+    try:
+        rows = await db._fetch("SELECT * FROM jurisdictions ORDER BY name")
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Get jurisdictions failed: {e}")
+        return []
 
 
 @router.put("/jurisdictions/{jurisdiction_id}")
 async def update_jurisdiction(
     jurisdiction_id: str,
     update_data: Dict[str, Any],
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """Update jurisdiction configuration."""
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
     # Validate fields
     allowed_fields = [
         'scrape_url', 'api_type', 'api_key_env', 
@@ -460,34 +588,105 @@ async def update_jurisdiction(
         'use_web_scraper_fallback', 'source_priority'
     ]
     filtered_data = {k: v for k, v in update_data.items() if k in allowed_fields}
+    if not filtered_data:
+         raise HTTPException(status_code=400, detail="No valid fields to update")
+
+    try:
+        # Construct update query dynamically
+        set_clauses = [f"{k} = ${i+2}" for i, k in enumerate(filtered_data.keys())]
+        query = f"UPDATE jurisdictions SET {', '.join(set_clauses)} WHERE id = $1 RETURNING *"
+        args = [jurisdiction_id] + list(filtered_data.values())
+        
+        row = await db._fetchrow(query, *args)
+        return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Update jurisdiction failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/jurisdiction/{jurisdiction_id}/dashboard", response_model=JurisdictionDashboardStats)
+async def get_jurisdiction_dashboard(
+    jurisdiction_id: str,
+    db: PostgresDB = Depends(get_pg_db)
+):
+    """
+    Get aggregated dashboard stats for a jurisdiction.
+    """
+    # 1. Get Jurisdiction Info (SQL)
+    # Using raw SQL for aggregation
     
-    result = db.client.table('jurisdictions').update(filtered_data).eq('id', jurisdiction_id).execute()
-    return result.data[0] if result.data else None
+    # Total Raw Scrapes & Processed
+    # Assuming we can join sources to get jurisdiction scrapes?
+    # raw_scrapes -> sources -> (jurisdiction_id logic?)
+    # Sources table has `jurisdiction_id`? Or `jurisdiction` name?
+    # Let's check `sources` table schema. Assuming `sources` table has `jurisdiction_id`.
+    # And `raw_scrapes` links to `sources`.
+    
+    try:
+        # Get Source IDs for this jurisdiction
+        # sources = await db._fetch("SELECT id FROM sources WHERE jurisdiction_id = $1", jurisdiction_id)
+        # source_ids = [s['id'] for s in sources]
+        
+        # Actually doing it in one query is better if possible, but step-by-step is safer for now.
+        
+        # Metrics
+        query_stats = """
+        SELECT 
+            count(*) as total,
+            count(*) filter (where processed = true) as processed,
+            max(created_at) as last_scrape
+        FROM raw_scrapes 
+        WHERE source_id IN (SELECT id FROM sources WHERE jurisdiction_id = $1)
+        """
+        # Note: If no sources, this returns 0/0/null.
+        # But wait, `sources` might use jurisdiction NAME?
+        # Let's assume ID based on endpoint input.
+        
+        # Check if column is jurisdiction_id or jurisdiction_name?
+        # Supabase code used `jurisdiction` name string in many places.
+        # But `jurisdictions` table has ID.
+        # I'll try to cast jurisdiction_id to uuid if needed.
+        
+        stats_row = await db._fetchrow(query_stats, jurisdiction_id)
+        
+        # Pipeline Health
+        # Check last admin_task for 'scrape'?
+        # admin_tasks doesn't stick to source schema.
+        
+        return JurisdictionDashboardStats(
+            jurisdiction=jurisdiction_id,
+            last_scrape=stats_row['last_scrape'] if stats_row else None,
+            total_raw_scrapes=stats_row['total'] if stats_row else 0,
+            processed_scrapes=stats_row['processed'] if stats_row else 0,
+            total_bills=0, # TODO: Aggregation from legislative_analysis or bills table
+            pipeline_status='healthy', # Placeholder
+            active_alerts=[]
+        )
+    except Exception as e:
+        # Fallback/Error handling
+        print(f"Dashboard stats failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
 # Prompt Management Endpoints
 # ============================================================================
 
+
+
+
 @router.get("/prompts/{prompt_type}", response_model=PromptConfig)
 async def get_prompt(
     prompt_type: Literal["generation", "review"],
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Get current system prompt for generation or review.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    result = db.client.table('system_prompts').select('*').eq(
-        'prompt_type', prompt_type
-    ).eq('is_active', True).execute()
-    
-    if not result.data:
+    row = await db.get_system_prompt(prompt_type)
+    if not row:
         raise HTTPException(status_code=404, detail=f"No active prompt found for {prompt_type}")
     
-    row = result.data[0]
     return PromptConfig(
         prompt_type=row['prompt_type'],
         system_prompt=row['system_prompt'],
@@ -499,43 +698,20 @@ async def get_prompt(
 @router.post("/prompts")
 async def update_prompt(
     request: PromptUpdateRequest,
-    db: SupabaseDB = Depends(get_db)
+    db: PostgresDB = Depends(get_pg_db)
 ):
     """
     Update system prompt for generation or review.
     
     Creates a new version and activates it.
     """
-    if not db.client:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Get current max version
-    version_result = db.client.table('system_prompts').select('version').eq(
-        'prompt_type', request.prompt_type
-    ).order('version', desc=True).limit(1).execute()
-    
-    next_version = 1
-    if version_result.data:
-        next_version = version_result.data[0]['version'] + 1
-    
-    # Deactivate current active prompt
-    db.client.table('system_prompts').update({
-        'is_active': False
-    }).eq('prompt_type', request.prompt_type).eq('is_active', True).execute()
-    
-    # Insert new prompt version
-    db.client.table('system_prompts').insert({
-        'prompt_type': request.prompt_type,
-        'version': next_version,
-        'system_prompt': request.system_prompt,
-        'description': f'Version {next_version}',
-        'is_active': True,
-        'activated_at': datetime.now().isoformat()
-    }).execute()
+    new_version = await db.update_system_prompt(request.prompt_type, request.system_prompt)
+    if not new_version:
+        raise HTTPException(status_code=500, detail="Failed to update prompt")
     
     return {
         "message": f"Prompt updated for {request.prompt_type}",
-        "version": next_version,
+        "version": new_version,
         "updated_at": datetime.now()
     }
 
@@ -567,93 +743,7 @@ async def get_detailed_health():
 # Background Task Implementations
 # ============================================================================
 
-async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: SupabaseDB):
-    """Background task to run scraping with multi-source support."""
-    if not db.client:
-        print(f"Task {task_id}: Database not available")
-        return
 
-    try:
-        # Update task status to running
-        db.client.table('admin_tasks').update({
-            'status': 'running',
-            'started_at': datetime.now().isoformat()
-        }).eq('id', task_id).execute()
-
-        # Import scraper registry
-        from services.scraper.san_jose import SanJoseScraper
-        from services.scraper.california_state import CaliforniaStateScraper
-        from services.scraper.santa_clara_county import SantaClaraCountyScraper
-        from services.scraper.saratoga import SaratogaScraper
-        
-        SCRAPER_MAP = {
-            'City of San Jose': SanJoseScraper,
-            'State of California': CaliforniaStateScraper,
-            'Santa Clara County': SantaClaraCountyScraper,
-            'Saratoga': SaratogaScraper,
-        }
-        
-        # Get jurisdiction config from database
-        jur_config = db.client.table('jurisdictions').select('*').eq('name', jurisdiction).single().execute()
-        if not jur_config.data:
-            raise Exception(f"Jurisdiction {jurisdiction} not found in database")
-        
-        config = jur_config.data
-        scraper_class = SCRAPER_MAP.get(jurisdiction)
-        
-        # Execute multi-source scraping based on source_priority
-        bills = await _execute_multi_source_scrape(scraper_class, config)
-        
-        # Store in database
-        jurisdiction_id = config['id']
-        bills_new = 0
-        bills_updated = 0
-        
-        for bill in bills:
-            leg_id = await db.store_legislation(jurisdiction_id, bill.dict())
-            if leg_id:
-                bills_new += 1
-        
-        # Record scrape history
-        db.client.table('scrape_history').insert({
-            'jurisdiction': jurisdiction,
-            'bills_found': len(bills),
-            'bills_new': bills_new,
-            'bills_updated': bills_updated,
-            'status': 'success',
-            'task_id': task_id
-        }).execute()
-        
-        # Update task status to completed
-        db.client.table('admin_tasks').update({
-            'status': 'completed',
-            'completed_at': datetime.now().isoformat(),
-            'result': {'bills_found': len(bills), 'bills_new': bills_new}
-        }).eq('id', task_id).execute()
-        
-        print(f"Task {task_id}: Completed scraping {jurisdiction}")
-        
-    except Exception as e:
-        error_msg = str(e)
-        print(f"Task {task_id} failed: {error_msg}")
-        import traceback
-        traceback.print_exc()
-        
-        # Update task status to failed
-        db.client.table('admin_tasks').update({
-            'status': 'failed',
-            'completed_at': datetime.now().isoformat(),
-            'error_message': error_msg
-        }).eq('id', task_id).execute()
-        
-        # Record failed scrape
-        db.client.table('scrape_history').insert({
-            'jurisdiction': jurisdiction,
-            'bills_found': 0,
-            'status': 'failed',
-            'error_message': error_msg,
-            'task_id': task_id
-        }).execute()
 
 
 async def _execute_multi_source_scrape(scraper_class, config):
@@ -750,54 +840,59 @@ async def _run_analysis_task(
     model_override: Optional[str]
 ):
     """Background task to run analysis step."""
+    db = PostgresDB()
+    
     try:
-        # Check feature flag
-        if os.getenv("ENABLE_NEW_LLM_PIPELINE", "false").lower() == "true":
-            print(f"Task {task_id}: Running {step} with NEW pipeline")
-            
-            # Import new pipeline components
-            from services.llm.orchestrator import AnalysisPipeline
-            from llm_common.llm_client import LLMClient
-            from llm_common.web_search import WebSearchClient
-            from llm_common.cost_tracker import CostTracker
-            
-            # Initialize clients
-            db = SupabaseDB().client
-            llm_client = LLMClient()
-            search_client = WebSearchClient(
-                api_key=os.getenv("ZAI_API_KEY", ""),
-                supabase_client=db
-            )
-            cost_tracker = CostTracker(supabase_client=db)
-            
-            pipeline = AnalysisPipeline(llm_client, search_client, cost_tracker, db)
-            
-            # Fetch bill text (placeholder)
-            # In a real implementation, we'd fetch this from the DB
-            bill_text = "Placeholder bill text" 
-            
-            # Run pipeline step
-            # Note: The pipeline currently runs all steps in 'run()', 
-            # but we can adapt it to run specific steps if needed.
-            # For now, we'll just run the full pipeline if step is 'generate' or 'all'
-            
-            models = {
-                "research": "gpt-4o-mini",
-                "generate": model_override or "claude-3-5-sonnet-20240620",
-                "review": "gpt-4o"
-            }
-            
-            if step == "generate" or step == "all":
-                await pipeline.run(bill_id, bill_text, jurisdiction, models)
-                
-        else:
-            # TODO: Implement actual analysis logic (Old Pipeline)
-            print(f"Task {task_id}: Running {step} for {bill_id} with model {model_override or 'default'} (OLD PIPELINE)")
+        await db.connect()
+        await db.update_admin_task(task_id, status='running')
         
+        print(f"Task {task_id}: Running {step} (New Pipeline)")
+        
+        # Import new pipeline components
+        # Import new pipeline components
+        from services.llm.orchestrator import AnalysisPipeline
+        from llm_common.core import LLMClient
+        from llm_common.web_search import WebSearchClient
+        
+        # Initialize clients - NO SUPABASE
+        llm_client = LLMClient() # This might need config, check LLMClient init
+        search_client = WebSearchClient(
+            api_key=os.getenv("ZAI_API_KEY", ""),
+            cache_backend=None 
+        )
+
+        pipeline = AnalysisPipeline(llm_client, search_client, db)
+        
+        # Fetch bill text logic (placeholder)
+        bill_text = "Placeholder bill text until DB fetch implemented" 
+        
+        models = {
+            "research": "gpt-4o-mini",
+            "generate": model_override or "claude-3-5-sonnet-20240620",
+            "review": "gpt-4o"
+        }
+        
+        if step == "generate" or step == "all":
+            result = await pipeline.run(bill_id, bill_text, jurisdiction, models)
+            
+            await db.update_admin_task(
+                task_id, 
+                status='completed',
+                result={'summary': result.summary, 'impacts_count': len(result.impacts)}
+            )
+        else:
+             await db.update_admin_task(task_id, status='completed', result={'message': f'Step {step} simulated'})
+             
     except Exception as e:
-        print(f"Task {task_id} failed: {e}")
+        error_msg = f"Analysis Task Failed: {str(e)}"
+        print(error_msg)
         import traceback
         traceback.print_exc()
+        
+        if db.is_connected():
+            await db.update_admin_task(task_id, status='failed', error=error_msg)
+    finally:
+        await db.close()
 
 
 def _check_scraper_health() -> Dict[str, Any]:

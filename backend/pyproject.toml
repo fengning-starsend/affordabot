@@ -32,9 +32,14 @@ sentry-sdk = {extras = ["fastapi"], version = "*"}
 sendgrid = "*"
 eval_type_backport = "*"
 scrapy = "*"
-llm-common = {path = "../packages/llm-common", develop = true}
+llm-common = {git = "https://github.com/stars-end/llm-common.git", branch = "feature-affordabot-q4x-agent-framework", extras = ["pgvector"]}
 playwright = "^1.56.0"
 city-scrapers-core = "^0.10.1"
+tenacity = "^8.0.0"
+asyncpg = "^0.30.0"
+minio = "^7.2.20"
+scrapy-playwright = "^0.0.44"
+psycopg2-binary = "^2.9.11"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -42,3 +47,7 @@ pytest-asyncio = "*"
 black = "*"
 ruff = "*"
 mypy = "*"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
