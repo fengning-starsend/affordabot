@@ -242,9 +242,15 @@ class PostgresDB:
             logger.error(f"Error failing pipeline run: {e}")
             return False
 
-    async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str) -> Optional[str]:
+    async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str, url: str = None) -> Optional[str]:
         """Get source ID, creating if it doesn't exist."""
         try:
+            # Check by URL if provided (stronger match), otherwise Name
+            if url:
+             row = await self._fetchrow("SELECT id FROM sources WHERE url = $1", url)
+             if row:
+                 return str(row['id'])
+
             row = await self._fetchrow(
                 "SELECT id FROM sources WHERE jurisdiction_id = $1 AND name = $2",
                 jurisdiction_id, name
@@ -253,8 +259,8 @@ class PostgresDB:
                 return str(row['id'])
                 
             row = await self._fetchrow(
-                "INSERT INTO sources (jurisdiction_id, name, type) VALUES ($1, $2, $3) RETURNING id",
-                jurisdiction_id, name, type
+                "INSERT INTO sources (jurisdiction_id, name, type, url) VALUES ($1, $2, $3, $4) RETURNING id",
+                jurisdiction_id, name, type, url
             )
             return str(row['id']) if row else None
         except Exception as e:

@@ -57,7 +57,7 @@ class ScrapeJob:
         
         # Create vector backend (feature flag controlled)
         vector_backend = create_vector_backend(
-            supabase_client=self.db.client,
+            postgres_client=self.db,
             embedding_fn=embed_fn
         )
         ingestion_service = IngestionService(

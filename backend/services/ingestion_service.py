@@ -206,9 +206,9 @@ class IngestionService:
             start = end - self.chunk_overlap
         
         return [c for c in chunks if c]
-    async def ingest_from_search_result(self, result: 'WebSearchResult', source_id: str = "web_search") -> Optional[str]:
+    async def ingest_from_search_result(self, result: 'WebSearchResult', source_id: str = "web_search") -> int:
         """
-        Ingest a WebSearchResult into the system.
+        Ingest a WebSearchResult into the system. Returns number of chunks ingested.
         """
         import hashlib
         
@@ -219,15 +219,15 @@ class IngestionService:
             if row:
                 db_source_id = row['id']
             else:
-                # Create source
                 db_source_id = await self.pg.get_or_create_source(
                     jurisdiction_id="web", # generic - TODO: Ensure 'web' jurisdiction exists or handle UUID
                     name=result.title,
-                    type="general"
+                    type="general",
+                    url=result.url
                 )
                 if not db_source_id:
                     print(f"❌ Failed to create source for {result.url}")
-                    return None
+                    return 0
 
             # Prepare Data
             active_content = result.content or result.snippet or ""
@@ -257,20 +257,12 @@ class IngestionService:
             scrape_id = await self.pg.create_raw_scrape(raw_data)
             
             if not scrape_id:
-                 return None
+                 return 0
             
             # 3. Process
             chunks = await self.process_raw_scrape(scrape_id)
-            if chunks > 0:
-                # Fetch updated document_id
-                try:
-                    row = await self.pg._fetchrow("SELECT document_id FROM raw_scrapes WHERE id = $1", scrape_id)
-                    return row['document_id'] if row else None
-                except Exception:
-                    return None
-            
-            return None
+            return chunks
 
         except Exception as e:
             print(f"❌ Ingestion error for {result.url}: {e}")
-            return None
+            return 0
