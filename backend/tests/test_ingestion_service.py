@@ -146,7 +146,8 @@ async def test_ingest_from_search_result_new(mock_postgres, mock_vector_backend,
     mock_postgres.get_or_create_source.assert_called_once_with(
         jurisdiction_id="web",
         name="Title", 
-        type="general"
+        type="general",
+        url="http://new.com"
     )
     mock_postgres.create_raw_scrape.assert_called_once()
     
