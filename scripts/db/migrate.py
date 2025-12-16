@@ -21,8 +21,8 @@ async def run_migrations():
     logger.info("🔌 Connecting to Database...")
     try:
         db = PostgresDB()
-        # Initialize pool
-        await db.get_pool()
+        # Initialize connection
+        await db.connect()
     except Exception as e:
         logger.error(f"❌ Failed to connect: {e}")
         return
