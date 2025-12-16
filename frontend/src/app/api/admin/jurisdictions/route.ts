@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+export const dynamic = 'force-dynamic';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || process.env.RAILWAY_SERVICE_BACKEND_URL || 'http://localhost:8000';
 
 export async function GET() {
     try {
