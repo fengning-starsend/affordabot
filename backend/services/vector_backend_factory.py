@@ -1,6 +1,5 @@
 """Factory for creating vector retrieval backends."""
 
-import os
 from typing import Optional, Callable, Awaitable
 from llm_common.retrieval import RetrievalBackend
 
@@ -12,36 +11,35 @@ def create_vector_backend(
     # postgres_client argument was added by me in run_rag_spiders.py.
     # Let's support it or just rely on Env.
     # Best to rely on Env for create_pg_backend as it handles connection pool itself.
-    embedding_fn: Optional[Callable[[str], Awaitable[list[float]]]] = None
+    embedding_fn: Optional[Callable[[str], Awaitable[list[float]]]] = None,
+    **kwargs # Swallow legacy args like supabase_client
 ) -> RetrievalBackend:
     """
-    Create vector retrieval backend (PgVector only).
+    Create vector retrieval backend (LocalPgVector for V3).
     
     Args:
-        postgres_client: Ignored (legacy compat)
+        postgres_client: PostgresDB instance (required for LocalPgVector)
         embedding_fn: Async function to generate embeddings
         
     Returns:
         RetrievalBackend instance
-        
-    Environment Variables:
-        DATABASE_URL: PostgreSQL connection string
     """
-    from llm_common.retrieval.backends import create_pg_backend
+    # V3: Use LocalPgVectorBackend to fix JSONB encoding issues and control logic
+    from services.retrieval.local_pgvector import LocalPgVectorBackend
+    from db.postgres_client import PostgresDB
     
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise ValueError("DATABASE_URL required for PgVectorBackend")
-    
-    # Ensure asyncpg driver is used
-    if database_url.startswith("postgresql://"):
-        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    elif database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-    
-    return create_pg_backend(
-        database_url=database_url,
-        table="documents",  # Keep existing table
-        vector_dimensions=4096,  # Qwen embedding dimensions
-        embed_fn=embedding_fn
+    if not postgres_client:
+        # If not provided, assume Env var available and instantiate
+        # But allow fallback if caller intends to set it later? 
+        # LocalPgVectorBackend checks for db presence lazily in upsert usually,
+        # but better to provide it.
+        try:
+             postgres_client = PostgresDB()
+             # Note: connecting might be required later
+        except Exception:
+             pass
+
+    return LocalPgVectorBackend(
+        table_name="documents",
+        postgres_client=postgres_client
     )

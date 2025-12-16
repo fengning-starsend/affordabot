@@ -1,5 +1,6 @@
 
 from typing import List, Dict, Any, Optional
+import json
 from llm_common.retrieval import RetrievalBackend, RetrievedChunk
 
 class LocalPgVectorBackend(RetrievalBackend):
@@ -58,7 +59,7 @@ class LocalPgVectorBackend(RetrievalBackend):
                     chunk['id'],
                     chunk['content'],
                     embedding_val,
-                    chunk['metadata'], # JSONB
+                    json.dumps(chunk['metadata']), # JSONB fix: dump to string
                     chunk.get('document_id')
                 )
                 
