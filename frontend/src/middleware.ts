@@ -8,6 +8,11 @@ const isProtected = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+    // TEST BYPASS LOGIC (Layer 3)
+    if (process.env.ENABLE_TEST_AUTH_BYPASS === 'true' && req.headers.get('x-test-user') === 'admin') {
+        return NextResponse.next();
+    }
+
     if (isProtected(req)) {
         const { userId } = await auth();
         if (!userId) {

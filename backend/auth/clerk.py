@@ -65,6 +65,23 @@ class ClerkAuth:
     async def __call__(
         self, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())
     ) -> UserProfile:
+        # TEST BYPASS LOGIC (Layer 3)
+        if os.getenv("ENABLE_TEST_AUTH_BYPASS") == "true":
+            # Just check if we simply want to bypass verification for headers
+            # However, typically Depends(HTTPBearer) requires the header format.
+            # We can inspect the token itself or just assume if the header is present/valid format
+            # we check for a special "bypass" token value or just trust it.
+            # BETTER: Check a separate header? Depends() only gives us Authorization.
+            # Let's assume if the token is "TEST_TOKEN_ADMIN" and flag is on, we allow it.
+            if credentials.credentials == "TEST_TOKEN_ADMIN":
+                logger.warning("Auth Bypass Triggered (TEST_TOKEN_ADMIN)")
+                return UserProfile(
+                    id="test_admin",
+                    first_name="Test",
+                    last_name="Admin",
+                    public_metadata={"role": "admin"}
+                )
+
         if not self.jwks_client:
              raise HTTPException(
                 status_code=500, detail="Clerk Authentication not configured (Missing Envs)"

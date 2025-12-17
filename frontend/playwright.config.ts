@@ -21,6 +21,10 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+    /* Bypass Auth in Tests */
+    extraHTTPHeaders: {
+      'x-test-user': 'admin',
+    },
   },
 
   /* Configure projects for major browsers */
