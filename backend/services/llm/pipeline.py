@@ -188,9 +188,17 @@ class DualModelAnalyzer:
         """Generate initial draft using fallback models."""
         default_prompt = """
         You are an expert policy analyst. Analyze the legislation for cost-of-living impacts.
-        Use the provided RESEARCH DATA to support your analysis with real evidence.
+        1. EVIDENCE FIRST: Use the provided AVAILABLE SOURCES to support your analysis. Cite them using [N].
+        2. CONFIDENCE: Assign a 'confidence_score' (0.0-1.0) to each impact based on the strength of evidence.
+        3. LAW/FACT SEPARATION: Explicitly split your reasoning into 'legal_interpretation' (what the law says) and 'impact_description' (what it does economically).
+        4. REALISM: Focus on direct, measurable financial impacts on residents.
         """
         system_prompt = await self._get_system_prompt("legislation_analysis", default_prompt)
+        
+        formatted_sources = "\n".join([
+            f"[{i+1}] {s.url} - {s.title}" 
+            for i, s in enumerate(research.sources)
+        ])
         
         user_message = f"""
         BILL: {bill_number} ({jurisdiction})
@@ -198,8 +206,8 @@ class DualModelAnalyzer:
         RESEARCH SUMMARY:
         {research.summary}
         
-        SOURCES:
-        {[s.url for s in research.sources]}
+        AVAILABLE SOURCES (Cite these by number, e.g. [1]):
+        {formatted_sources}
         
         TEXT:
         {bill_text[:10000]}... (truncated)

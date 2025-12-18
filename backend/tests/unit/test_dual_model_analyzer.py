@@ -18,11 +18,23 @@ def mock_research_package():
 
 @pytest.fixture
 def mock_analysis_response():
+    from schemas.analysis import LegislationImpact, ImpactEvidence
     # Create a minimal valid response
     return LegislationAnalysisResponse(
         bill_number="AB-123",
-        impacts=[], 
-        total_impact_p50=100.0,
+        impacts=[
+             LegislationImpact(
+                  impact_number=1,
+                  relevant_clause="Clause 1",
+                  legal_interpretation="This law mandates X.",
+                  impact_description="Cost goes up",
+                  evidence=[ImpactEvidence(source_name="Source 1", url="http://x.com", excerpt="Quote")],
+                  chain_of_causality="Cause -> Effect",
+                  confidence_score=0.9,
+                  p10=10, p25=25, p50=50, p75=75, p90=90
+             )
+        ], 
+        total_impact_p50=50.0,
         analysis_timestamp="2025-01-01T00:00:00",
         model_used="test-model"
     )
