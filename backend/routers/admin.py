@@ -131,17 +131,17 @@ async def _run_scrape_task(task_id: str, jurisdiction: str, force: bool, db: Pos
             return
 
         # ... existing legislation logic ...
+
         # Import scraper registry
-        from services.scraper.san_jose import SanJoseScraper
-        from services.scraper.california_state import CaliforniaStateScraper
-        from services.scraper.santa_clara_county import SantaClaraCountyScraper
-        from services.scraper.saratoga import SaratogaScraper
+        from services.scraper.registry import SCRAPERS
         
+        # Map database jurisdiction names to registry keys
+        # TODO: Add 'slug' or 'scraper_key' to jurisdictions table to avoid this hardcoding
         SCRAPER_MAP = {
-            'City of San Jose': SanJoseScraper,
-            'State of California': CaliforniaStateScraper,
-            'Santa Clara County': SantaClaraCountyScraper,
-            'Saratoga': SaratogaScraper,
+            'City of San Jose': SCRAPERS['san-jose'][0], # Wire to new CityScrapers adapter
+            'State of California': SCRAPERS['california'][0],
+            'Santa Clara County': SCRAPERS['santa-clara-county'][0],
+            'Saratoga': SCRAPERS['saratoga'][0],
         }
         
         # Get jurisdiction config from database
