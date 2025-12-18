@@ -55,11 +55,17 @@ def analyzer(mock_research_package):
     """
     with patch("services.llm.pipeline.ZaiResearchService") as MockResearcher, \
          patch("services.llm.pipeline.instructor.from_openai") as mock_from_openai, \
-         patch("services.llm.pipeline.AsyncOpenAI"):
+         patch("services.llm.pipeline.AsyncOpenAI"), \
+         patch("services.llm.pipeline.PostgresDB") as MockDB:
         
         # Setup Researcher Mock
         mock_researcher_instance = MockResearcher.return_value
         mock_researcher_instance.search_exhaustively = AsyncMock(return_value=mock_research_package)
+        
+        # Setup DB Mock
+        mock_db_instance = MockDB.return_value
+        mock_db_instance.connect = AsyncMock()
+        mock_db_instance.get_system_prompt = AsyncMock(return_value=None) # Default fallback
         
         # Setup LLM Client Mock
         mock_client = MagicMock()
@@ -72,6 +78,7 @@ def analyzer(mock_research_package):
         # Attach mocks to the instance for test access
         analyzer_instance._mock_llm_client = mock_client
         analyzer_instance._mock_researcher = mock_researcher_instance
+        analyzer_instance.db = mock_db_instance # Inject mock DB
         
         yield analyzer_instance
 
