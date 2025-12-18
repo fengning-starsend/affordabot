@@ -331,6 +331,42 @@ async def trigger_manual_scrape(
 
 
 @router.get("/scrapes", response_model=List[ScrapeHistory])
+
+@router.get("/scrapes/{scrape_id}/asset")
+async def get_scrape_asset(
+    scrape_id: str,
+    db: PostgresDB = Depends(get_pg_db)
+):
+    """
+    Get the log/asset associated with a scrape history entry.
+    """
+    # 1. Get scrape history to find task_id
+    scrape = await db._fetchrow("SELECT task_id, error_message FROM scrape_history WHERE id = $1", scrape_id)
+    if not scrape:
+        raise HTTPException(status_code=404, detail="Scrape history not found")
+    
+    task_id = scrape['task_id']
+    if not task_id:
+        # If no task ID, return error message if present
+        if scrape['error_message']:
+            return {"content": scrape['error_message'], "type": "error"}
+        return {"content": "No task logs available", "type": "info"}
+
+    # 2. Get task result/logs
+    task = await db.get_admin_task(str(task_id))
+    if not task:
+        return {"content": "Task record not found", "type": "warning"}
+        
+    result = task.get('result') or {}
+    logs = result.get('logs') or result.get('message') or scrape['error_message'] or "No logs available"
+    
+    # Return as plain text content (frontend can display in new tab or modal)
+    # Using JSON response but frontend opens in new tab? 
+    # Frontend code: target="_blank"
+    # If we want it to display nicely in browser, maybe plain text is better.
+    from fastapi.responses import Response
+    return Response(content=str(logs), media_type="text/plain")
+
 @router.get("/scrapes", response_model=List[ScrapeHistory])
 async def get_scrape_history(
     jurisdiction: Optional[str] = None,
