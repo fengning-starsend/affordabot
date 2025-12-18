@@ -26,6 +26,13 @@ ENVIRONMENT=production  # or development
 SENDGRID_API_KEY=SG.xxxxx
 FROM_EMAIL=notifications@affordabot.ai
 
+# Object Storage (MinIO/S3)
+MINIO_URL=minio.railway.internal:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET=affordabot-artifacts
+MINIO_SECURE=false
+
 # Optional: LLM Configuration
 LLM_MODEL=x-ai/grok-beta  # Default: grok-beta (free tier)
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1  # Default
