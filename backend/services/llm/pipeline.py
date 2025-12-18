@@ -7,7 +7,6 @@ from schemas.analysis import LegislationAnalysisResponse
 from services.research.zai import ZaiResearchService, ResearchPackage
 import logging
 
-import logging
 from db.postgres_client import PostgresDB
 
 logger = logging.getLogger(__name__)
