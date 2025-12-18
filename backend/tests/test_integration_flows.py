@@ -28,15 +28,18 @@ async def test_admin_source_flow(mock_postgres):
     # Let's mock IngestionService inputs directly first.
     
     # 3. Simulate Scraper output (Raw Scrape)
-    scrape_id = "scrape-123"
+    # 3. Simulate Scraper output (Raw Scrape)
+    scrape_id = "123e4567-e89b-12d3-a456-426614174000"
+    source_id = "123e4567-e89b-12d3-a456-426614174001"
     scrape_data = {
         "id": scrape_id,
-        "source_id": "source-123",
+        "source_id": source_id,
         "content_hash": "hash123",
         "content_type": "text/html",
         "data": json.dumps({"content": "Meeting Minutes"}),
         "metadata": json.dumps({}),
-        "processed": None
+        "processed": False, # Must be bool
+        "url": "http://example.com/minutes" # Required
     }
     
     # Mock Postgres fetchrow for process_raw_scrape
@@ -67,4 +70,37 @@ async def test_admin_source_flow(mock_postgres):
     
     # Check vector backend was called (stored in vector db)
     mock_vector.upsert.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_ingestion_error_handling(mock_postgres):
+    """Test that ingestion errors are logged to DB."""
+    scrape_id = "error-scrape-123"
+    
+    # Simulate DB returning invalid data (violates Pydantic schema)
+    # Missing 'url' field which is required
+    invalid_data = {
+        "id": scrape_id,
+        "source_id": "123e4567-e89b-12d3-a456-426614174000", 
+        "data": "{}",
+        "processed": False
+        # Missing 'url'
+    }
+    
+    mock_postgres._fetchrow.return_value = invalid_data
+    mock_vector = AsyncMock()
+    mock_embed = AsyncMock()
+    
+    ingestion = IngestionService(mock_postgres, mock_vector, mock_embed)
+    
+    # Run
+    count = await ingestion.process_raw_scrape(scrape_id)
+    
+    # Verify
+    assert count == 0
+    
+    # Check error logging
+    mock_postgres._execute.assert_called()
+    args = mock_postgres._execute.call_args[0]
+    assert "UPDATE raw_scrapes SET processed = false" in args[0]
+    assert "validation failed" in args[1] or "Field required" in str(args[1])
 

@@ -3,8 +3,7 @@
 from __future__ import annotations
 import re
 from typing import List, Dict, Any
-from uuid import uuid4
-import json
+from uuid import uuid4, UUID
 from pydantic import ValidationError
 
 # LLM Common v0.4.0+ interfaces
@@ -60,13 +59,20 @@ class IngestionService:
             print(f"⚠️ Raw scrape {scrape_id} not found.")
             return 0
         
+        # Idempotency Check (if hash already processed in verified legislation?)
+        # For now, we trust 'processed' flag on the job. 
+        # But if we want to dedupe:
+        # if row['processed']: return 0
+        
         try:
             # The row from the DB is a dict-like object, which Pydantic can parse
             scrape = RawScrape.model_validate(row)
         except ValidationError as e:
             print(f"❌ Pydantic validation failed for scrape {scrape_id}: {e}")
-            # Optionally, mark the scrape as failed/un-processable
-            # await self.pg._execute("UPDATE raw_scrapes SET processed = false, error_message = $1 WHERE id = $2", str(e), scrape_id)
+            await self.pg._execute(
+                "UPDATE raw_scrapes SET processed = false, error_message = $1 WHERE id = $2",
+                str(e), scrape_id
+            )
             return 0
 
         # 2. Extract text from data
@@ -153,13 +159,20 @@ class IngestionService:
             doc_chunks.append(chunk_data)
         
         # 6. Store in vector backend
-        await self.vector_backend.upsert(doc_chunks)
-        
-        # 7. Mark scrape as processed
-        await self.pg._execute(
-            "UPDATE raw_scrapes SET processed = $1, document_id = $2 WHERE id = $3",
-            True, document_id, scrape_id
-        )
+        try:
+            await self.vector_backend.upsert(doc_chunks)
+            
+            # 7. Mark scrape as processed
+            await self.pg._execute(
+                "UPDATE raw_scrapes SET processed = $1, document_id = $2, error_message = NULL WHERE id = $3",
+                True, document_id, scrape_id
+            )
+        except Exception as e:
+            await self.pg._execute(
+                "UPDATE raw_scrapes SET processed = false, error_message = $1 WHERE id = $2",
+                f"Vector Upsert Failed: {e}", scrape_id
+            )
+            raise e
         
         return len(doc_chunks)
     
