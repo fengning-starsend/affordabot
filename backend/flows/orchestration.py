@@ -18,7 +18,7 @@ def run_spider(spider_name: str):
 @task
 async def run_pipeline(source_path: str):
     logger = get_run_logger()
-    logger.info(f"Running ingestion pipeline")
+    logger.info("Running ingestion pipeline")
     
     # 1. Initialize Infrastructure
     db = PostgresDB()
@@ -42,12 +42,12 @@ async def run_pipeline(source_path: str):
     vector_backend = create_vector_backend(db, None) # Embed fn handled inside service usually? No, factory needs it.
     
     # 4. Initialize Ingestion Service
-    ingestion = IngestionService(
-        postgres_client=db,
-        vector_backend=vector_backend,
-        embedding_service=embedding_service,
-        storage_backend=s3
-    )
+    # ingestion = IngestionService(
+    #     postgres_client=db,
+    #     vector_backend=vector_backend,
+    #     embedding_service=embedding_service,
+    #     storage_backend=s3
+    # )
     
     # 5. Process pending raw scrapes (V2 Pattern: Scraper inserts RawScrape, Pipeline processes it)
     # Fetch pending IDs? For now, we mimic daily_scrape loop or just process all pending.

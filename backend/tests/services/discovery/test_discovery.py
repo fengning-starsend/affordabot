@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from services.discovery import AutoDiscoveryService, DiscoveryResponse
 
 @pytest.mark.asyncio
