@@ -2,7 +2,7 @@ import os
 import instructor
 import logging
 from openai import AsyncOpenAI
-from typing import List, Optional
+# from typing import List, Optional (Unused)
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
