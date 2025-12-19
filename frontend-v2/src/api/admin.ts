@@ -15,8 +15,28 @@ export async function listAgentSessions(): Promise<string[]> {
     return res.json();
 }
 
+
+export interface PipelineStep {
+    id: string;
+    run_id: string;
+    step_number: number;
+    step_name: string;
+    status: string;
+    input_context?: Record<string, any>;
+    output_result?: Record<string, any>;
+    model_config?: Record<string, any>;
+    duration_ms?: number;
+    created_at?: string;
+}
+
 export async function getAgentTraces(queryId: string): Promise<AgentStep[]> {
     const res = await fetch(`${API_BASE}/admin/traces/${queryId}`);
     if (!res.ok) throw new Error('Failed to fetch traces');
+    return res.json();
+}
+
+export async function getRunSteps(runId: string): Promise<PipelineStep[]> {
+    const res = await fetch(`${API_BASE}/admin/runs/${runId}/steps`);
+    if (!res.ok) return []; // Return empty if not found or old run
     return res.json();
 }

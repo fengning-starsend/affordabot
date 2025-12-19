@@ -26,7 +26,7 @@ class PostgresDB:
         if not self.pool:
             try:
                 # Railway internal network and TCP Proxy don't support SSL upgrade
-                # Only use SSL for true external connections (Supabase, etc.)
+                # Only use SSL for true external connections (External DBs, etc.)
                 use_ssl = 'railway.internal' not in self.database_url and 'proxy.rlwy.net' not in self.database_url
                 
                 if use_ssl:
@@ -165,12 +165,9 @@ class PostgresDB:
                         """
                         for impact in impacts:
                             # evidence list handling: Postgres array or JSONB? 
-                            # Usually Supabase handles list -> JSONB or Array automatically.
                             # Assuming JSONB for flexible schema or text[]
-                            # Let's try to json dump if it's JSONB, or list if it's array.
-                            # Without schema knowledge, safest is typically JSON string or list if using asyncpg with known types.
-                            # Given Supabase defaults, likely JSONB or TEXT[].
                             # Using json.dumps for evidence if complex. 
+                            # Given Postgres usage, likely JSONB or TEXT[].
                             evidence = json.dumps(impact.get("evidence", [])) 
                             
                             await conn.execute(insert_sql,
@@ -180,7 +177,7 @@ class PostgresDB:
                                 impact["impact_description"],
                                 evidence, # Passing as JSON string
                                 impact["chain_of_causality"],
-                                impact["confidence_factor"],
+                                impact.get("confidence_score", 0.0),
                                 impact["p10"], impact["p25"], impact["p50"], impact["p75"], impact["p90"]
                             )
                     
@@ -266,6 +263,42 @@ class PostgresDB:
         except Exception as e:
             logger.error(f"Error in get_or_create_source: {e}")
             return None
+
+    async def get_sources(self, jurisdiction_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List sources, optionally filtered by jurisdiction."""
+        if jurisdiction_id:
+            query = "SELECT * FROM sources WHERE jurisdiction_id = $1"
+            rows = await self._fetch(query, jurisdiction_id)
+        else:
+            query = "SELECT * FROM sources"
+            rows = await self._fetch(query)
+        return [dict(row) for row in rows]
+
+    async def get_source(self, source_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single source by ID."""
+        query = "SELECT * FROM sources WHERE id = $1"
+        row = await self._fetchrow(query, source_id)
+        return dict(row) if row else None
+
+    async def create_source(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new source."""
+        columns = ", ".join(data.keys())
+        placeholders = ", ".join([f"${i+1}" for i in range(len(data))])
+        query = f"INSERT INTO sources ({columns}) VALUES ({placeholders}) RETURNING *"
+        row = await self._fetchrow(query, *data.values())
+        return dict(row)
+
+    async def update_source(self, source_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing source."""
+        set_clause = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(data.keys())])
+        query = f"UPDATE sources SET {set_clause} WHERE id = $1 RETURNING *"
+        row = await self._fetchrow(query, source_id, *data.values())
+        return dict(row) if row else {}
+
+    async def delete_source(self, source_id: str) -> None:
+        """Delete a source."""
+        query = "DELETE FROM sources WHERE id = $1"
+        await self._execute(query, source_id)
 
     # Admin Task Methods
     async def create_admin_task(self, task_id: str, task_type: str, jurisdiction: str, status: str = "queued", config: Dict = None) -> bool:

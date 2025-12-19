@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Box, Typography, List, ListItem, ListItemButton, ListItemText, Paper, CircularProgress, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import { Box, Typography, List, ListItem, ListItemButton, ListItemText, Paper, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Alert } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { listAgentSessions, getAgentTraces, AgentStep } from '../api/admin';
+import { listAgentSessions, getAgentTraces, getRunSteps, AgentStep } from '../api/admin';
 import { useQuery } from '@tanstack/react-query';
+import PipelineStepTimeline from './PipelineStepTimeline';
 
 export default function GlassBoxViewer() {
     const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
@@ -12,11 +13,23 @@ export default function GlassBoxViewer() {
         queryFn: listAgentSessions
     });
 
+    // 1. Fetch Legacy Traces
     const { data: traces, isLoading: loadingTraces } = useQuery({
         queryKey: ['agent-traces', selectedQuery],
         queryFn: () => getAgentTraces(selectedQuery!),
         enabled: !!selectedQuery
     });
+
+    // 2. Fetch Granular Steps (New)
+    const { data: granularSteps, isLoading: loadingSteps } = useQuery({
+        queryKey: ['pipeline-steps', selectedQuery],
+        queryFn: () => getRunSteps(selectedQuery!),
+        enabled: !!selectedQuery
+    });
+
+    const isLoading = loadingTraces || loadingSteps;
+    const hasGranularData = granularSteps && granularSteps.length > 0;
+    const hasLegacyData = traces && traces.length > 0;
 
     return (
         <Box sx={{ display: 'flex', gap: 2, height: '80vh' }}>
@@ -48,34 +61,56 @@ export default function GlassBoxViewer() {
                     Execution Trace: {selectedQuery || "Select a session"}
                 </Typography>
 
-                {loadingTraces && <CircularProgress />}
+                {isLoading && <CircularProgress />}
 
-                {traces?.map((step: AgentStep, idx: number) => (
-                    <Accordion key={idx} defaultExpanded>
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <Typography sx={{ width: '33%', flexShrink: 0, fontWeight: 'bold', color: 'primary.main' }}>
-                                {step.tool}
-                            </Typography>
-                            <Typography sx={{ color: 'text.secondary' }}>
-                                Tasks: {step.task_id} | {new Date(step.timestamp).toLocaleTimeString()}
-                            </Typography>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <Box sx={{ mb: 2 }}>
-                                <Typography variant="subtitle2">Arguments:</Typography>
-                                <Paper variant="outlined" sx={{ p: 1, bgcolor: 'background.default' }}>
-                                    <pre style={{ margin: 0, overflow: 'auto' }}>{JSON.stringify(step.args, null, 2)}</pre>
-                                </Paper>
-                            </Box>
-                            <Box>
-                                <Typography variant="subtitle2">Result:</Typography>
-                                <Paper variant="outlined" sx={{ p: 1, bgcolor: 'background.default' }}>
-                                    <pre style={{ margin: 0, overflow: 'auto' }}>{JSON.stringify(step.result, null, 2)}</pre>
-                                </Paper>
-                            </Box>
-                        </AccordionDetails>
-                    </Accordion>
-                ))}
+                {!isLoading && selectedQuery && !hasGranularData && !hasLegacyData && (
+                    <Alert severity="info">No trace data found for this session.</Alert>
+                )}
+
+                {/* Prefer Granular Data */}
+                {hasGranularData && (
+                    <Box>
+                        <Alert severity="success" sx={{ mb: 2 }}>
+                            Viewing Granular Step Data (V2 Pipeline)
+                        </Alert>
+                        <PipelineStepTimeline steps={granularSteps} />
+                    </Box>
+                )}
+
+                {/* Fallback to Legacy Data if no Granular Data */}
+                {!hasGranularData && hasLegacyData && (
+                    <Box>
+                        <Alert severity="warning" sx={{ mb: 2 }}>
+                            Viewing Legacy Trace Data (File System)
+                        </Alert>
+                        {traces?.map((step: AgentStep, idx: number) => (
+                            <Accordion key={idx} defaultExpanded>
+                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                    <Typography sx={{ width: '33%', flexShrink: 0, fontWeight: 'bold', color: 'primary.main' }}>
+                                        {step.tool}
+                                    </Typography>
+                                    <Typography sx={{ color: 'text.secondary' }}>
+                                        Tasks: {step.task_id} | {new Date(step.timestamp).toLocaleTimeString()}
+                                    </Typography>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <Box sx={{ mb: 2 }}>
+                                        <Typography variant="subtitle2">Arguments:</Typography>
+                                        <Paper variant="outlined" sx={{ p: 1, bgcolor: 'background.default' }}>
+                                            <pre style={{ margin: 0, overflow: 'auto' }}>{JSON.stringify(step.args, null, 2)}</pre>
+                                        </Paper>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="subtitle2">Result:</Typography>
+                                        <Paper variant="outlined" sx={{ p: 1, bgcolor: 'background.default' }}>
+                                            <pre style={{ margin: 0, overflow: 'auto' }}>{JSON.stringify(step.result, null, 2)}</pre>
+                                        </Paper>
+                                    </Box>
+                                </AccordionDetails>
+                            </Accordion>
+                        ))}
+                    </Box>
+                )}
             </Paper>
         </Box>
     );
