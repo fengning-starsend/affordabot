@@ -362,14 +362,47 @@ class PostgresDB:
         """Wrapper for log_scrape_history using kwargs."""
         return await self.log_scrape_history(kwargs)
             
+    async def get_latest_scrape_for_bill(self, jurisdiction: str, bill_number: str) -> Optional[Dict[str, Any]]:
+        """Find the latest raw scrape for a specific bill."""
+        try:
+            # Query using JSONB operator to find matching metadata
+            query = """
+                SELECT rs.id, rs.source_id, rs.url, rs.data, rs.metadata, rs.content_hash, rs.storage_uri, rs.document_id
+                FROM raw_scrapes rs
+                JOIN sources s ON rs.source_id = s.id
+                WHERE s.jurisdiction_id = (SELECT id FROM jurisdictions WHERE name = $1)
+                AND (rs.metadata->>'bill_number')::text = $2
+                ORDER BY rs.created_at DESC
+                LIMIT 1
+            """
+            row = await self._fetchrow(query, jurisdiction, bill_number)
+            if row:
+                return dict(row)
+            return None
+        except Exception as e:
+            print(f"❌ Error getting latest scrape: {e}")
+            return None
+
+    async def get_vector_stats(self, document_id: str) -> Dict[str, Any]:
+        """Get stats for a user-facing document (chunk count)."""
+        try:
+            row = await self._fetchrow(
+                "SELECT count(*) as chunk_count FROM document_chunks WHERE document_id = $1",
+                document_id
+            )
+            return {"chunk_count": row['chunk_count'] if row else 0}
+        except Exception as e:
+            print(f"❌ Error getting vector stats: {e}")
+            return {"chunk_count": 0}
+
     # RAG Support (Raw Scrapes) - needed for RAG Port but defining now for daily_scrape port
     async def create_raw_scrape(self, scrape_record: Dict[str, Any]) -> Optional[str]:
         try:
             row = await self._fetchrow(
                 """
                 INSERT INTO raw_scrapes 
-                (source_id, content_hash, content_type, data, url, metadata)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                (source_id, content_hash, content_type, data, url, metadata, storage_uri, document_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id
                 """,
                 scrape_record["source_id"],
@@ -377,7 +410,9 @@ class PostgresDB:
                 scrape_record["content_type"],
                 json.dumps(scrape_record["data"]),
                 scrape_record["url"],
-                json.dumps(scrape_record["metadata"])
+                json.dumps(scrape_record["metadata"]),
+                scrape_record.get("storage_uri"),
+                scrape_record.get("document_id")
             )
             return str(row['id']) if row else None
         except Exception as e:

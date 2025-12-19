@@ -22,7 +22,7 @@ class PipelineStep(BaseModel):
     status: str
     input_context: Optional[Dict[str, Any]] = None
     output_result: Optional[Dict[str, Any]] = None
-    model_config: Optional[Dict[str, Any]] = None
+    model_info: Optional[Dict[str, Any]] = None
     duration_ms: Optional[int] = None
     created_at: Any = None
 
@@ -64,7 +64,7 @@ class GlassBoxService:
                     status=r['status'],
                     input_context=json.loads(r['input_context']) if isinstance(r['input_context'], str) else r['input_context'],
                     output_result=json.loads(r['output_result']) if isinstance(r['output_result'], str) else r['output_result'],
-                    model_config=json.loads(r['model_config']) if isinstance(r['model_config'], str) else r['model_config'],
+                    model_info=json.loads(r['model_config']) if isinstance(r['model_config'], str) else r['model_config'],
                     duration_ms=r['duration_ms'],
                     created_at=r['created_at']
                 ))

@@ -37,43 +37,41 @@ class AuditLogger:
         status: str, 
         input_context: Dict[str, Any] = {}, 
         output_result: Dict[str, Any] = {},
-        model_config: Dict[str, Any] = {},
+        model_info: Dict[str, Any] = {},
         duration_ms: int = 0
     ):
-        """
-        Log a pipeline execution step to all sinks.
-        """
+        """Log a pipeline step to all outputs."""
         # 1. Structure Data
-        step_data = {
+        step = {
             "run_id": self.run_id,
             "step_number": step_number,
             "step_name": step_name,
             "status": status,
             "input_context": input_context,
             "output_result": output_result,
-            "model_config": model_config,
+            "model_info": model_info,
             "duration_ms": duration_ms,
             "timestamp": datetime.datetime.now().isoformat()
         }
-        self.steps.append(step_data)
+        self.steps.append(step)
 
         # 2. Terminal Log
-        self._log_to_terminal(step_num=step_number, name=step_name, status=status, data=step_data)
+        self._log_to_terminal(step_num=step_number, name=step_name, status=status, data=step)
 
         # 3. File Artifact Log
         self._log_to_file()
 
         # 4. DB Write (Async)
         if self.db:
-            await self._write_to_db(step_data)
+            await self._write_to_db(step)
 
     def _log_to_terminal(self, step_num: int, name: str, status: str, data: Dict[str, Any]):
         prefix = f"[AUDIT-STEP-{step_num}]"
         logger.info(f"{prefix} {name} - Status: {status}")
         
         # Log concise summary of input/output
-        if data.get("model_config"):
-            logger.info(f"{prefix} Model: {data['model_config'].get('model', 'unknown')}")
+        if data.get("model_info"):
+            logger.info(f"{prefix} Model: {data['model_info'].get('model', 'unknown')}")
         
         # Don't dump massive JSON to terminal, just key details
         if status == "failed":
@@ -105,7 +103,7 @@ class AuditLogger:
             # Serialize JSON fields
             input_json = json.dumps(step['input_context'], default=str)
             output_json = json.dumps(step['output_result'], default=str)
-            model_json = json.dumps(step['model_config'], default=str)
+            model_json = json.dumps(step['model_info'], default=str)
             
             await self.db._execute(
                 query, 

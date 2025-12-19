@@ -1,12 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Typography, List, ListItem, ListItemButton, ListItemText, Paper, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Alert } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { listAgentSessions, getAgentTraces, getRunSteps, AgentStep } from '../api/admin';
 import { useQuery } from '@tanstack/react-query';
 import PipelineStepTimeline from './PipelineStepTimeline';
+import { useParams, useNavigate } from 'react-router-dom';
 
 export default function GlassBoxViewer() {
-    const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
+    const { runId } = useParams();
+    const navigate = useNavigate();
+    const [selectedQuery, setSelectedQuery] = useState<string | null>(runId || null);
+
+    // Sync state with URL param
+    useEffect(() => {
+        if (runId && runId !== selectedQuery) {
+            setSelectedQuery(runId);
+        }
+    }, [runId, selectedQuery]);
+
+    const handleSelectQuery = (q: string) => {
+        setSelectedQuery(q);
+        navigate(`/admin/runs/${q}`);
+    };
 
     const { data: queries, isLoading: loadingQueries } = useQuery({
         queryKey: ['agent-sessions'],
@@ -44,7 +59,7 @@ export default function GlassBoxViewer() {
                             <ListItem key={q} disablePadding>
                                 <ListItemButton
                                     selected={q === selectedQuery}
-                                    onClick={() => setSelectedQuery(q)}
+                                    onClick={() => handleSelectQuery(q)}
                                 >
                                     <ListItemText primary={q.substring(0, 15) + '...'} secondary="Trace ID" />
                                 </ListItemButton>

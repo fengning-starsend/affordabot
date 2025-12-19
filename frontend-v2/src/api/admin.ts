@@ -24,7 +24,7 @@ export interface PipelineStep {
     status: string;
     input_context?: Record<string, any>;
     output_result?: Record<string, any>;
-    model_config?: Record<string, any>;
+    model_info?: Record<string, any>;
     duration_ms?: number;
     created_at?: string;
 }

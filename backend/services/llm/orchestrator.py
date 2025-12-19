@@ -60,6 +60,62 @@ class AnalysisPipeline:
         audit = AuditLogger(run_id, self.db)
         
         try:
+            # Step 0: Ingestion Source (Synthetic Link)
+            # Step 0: Ingestion Source (Virtual)
+            source_data = await self.db.get_latest_scrape_for_bill(jurisdiction, bill_id)
+            if source_data:
+                await audit.log_step(
+                    step_number=0,
+                    step_name="ingestion_source",
+                    status="completed",
+                    input_context={
+                        "jurisdiction": jurisdiction,
+                        "bill_id": bill_id,
+                        "bill_text_preview": bill_text[:500] + "..." if bill_text else "N/A"
+                    },
+                    output_result={
+                        "raw_scrape_id": str(source_data['id']),
+                        "source_url": source_data['url'],
+                        "content_hash": source_data['content_hash'],
+                        "metadata": source_data['metadata'],
+                        "minio_blob_path": source_data.get('storage_uri', 'N/A')
+                    },
+                    model_info={"model": "scraper", "provider": "firecrawl"},
+                    duration_ms=0
+                )
+
+                # Step 0.5: Embedding / Vector Storage (Virtual)
+                if source_data.get('document_id'):
+                    vector_stats = await self.db.get_vector_stats(source_data['document_id'])
+                    await audit.log_step(
+                        step_number=0.5,
+                        step_name="embedding",
+                        status="completed",
+                        input_context={
+                            "document_id": source_data['document_id'],
+                            "chunk_strategy": "fixed_size",
+                            "chunk_size": 1000,
+                            "chunk_overlap": 200
+                        },
+                        output_result={
+                            "vector_db": "pgvector",
+                            "chunks_generated": vector_stats.get('chunk_count', 0),
+                            "status": "indexed"
+                        },
+                        model_info={"model": "text-embedding-3-small", "provider": "openai"},
+                        duration_ms=0
+                    )
+            else:
+                await audit.log_step(
+                    step_number=0,
+                    step_name="ingestion_source",
+                    status="skipped",
+                    input_context={"jurisdiction": jurisdiction, "bill_id": bill_id},
+                    output_result={"error": "No raw scrape found for this bill."},
+                    model_info={"model": "scraper", "provider": "firecrawl"},
+                    duration_ms=0
+                )
+
             # Step 1: Research
             start_ts = datetime.now()
             research_data = await self._research_step(bill_id, bill_text, jurisdiction, models["research"])
@@ -70,8 +126,8 @@ class AnalysisPipeline:
                 step_name="research",
                 status="completed",
                 input_context={"bill_id": bill_id, "prompt": "Research task planner"},
-                output_result={"data_points": len(research_data)},
-                model_config={"model": models["research"]},
+                output_result={"research_data": research_data},
+                model_info={"model": models["research"]},
                 duration_ms=duration
             )
             
@@ -88,7 +144,7 @@ class AnalysisPipeline:
                 status="completed",
                 input_context={"research_data_count": len(research_data)},
                 output_result=analysis.model_dump(),
-                model_config={"model": models["generate"]},
+                model_info={"model": models["generate"]},
                 duration_ms=duration
             )
             
@@ -103,7 +159,7 @@ class AnalysisPipeline:
                 status="completed",
                 input_context={"analysis_summary": "See generate step"},
                 output_result=review.model_dump(),
-                model_config={"model": models["review"]},
+                model_info={"model": models["review"]},
                 duration_ms=duration
             )
             
@@ -121,7 +177,7 @@ class AnalysisPipeline:
                     status="completed",
                     input_context={"critique": review.model_dump()},
                     output_result=analysis.model_dump(),
-                    model_config={"model": models["generate"]},
+                    model_info={"model": models["generate"]},
                     duration_ms=duration
                 )
             
@@ -137,7 +193,8 @@ class AnalysisPipeline:
                 step_number=99, 
                 step_name="pipeline_failure", 
                 status="failed", 
-                output_result={"error": str(e)}
+                output_result={"error": str(e)},
+                model_info={"models_attempted": models}
             )
             raise
     

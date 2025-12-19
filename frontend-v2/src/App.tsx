@@ -3,6 +3,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { Box, AppBar, Toolbar, Typography, Container, Tabs, Tab } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import GlassBoxViewer from './components/GlassBoxViewer'
 import LegislationList from './components/LegislationList'
 
@@ -14,38 +15,18 @@ const darkTheme = createTheme({
 
 const queryClient = new QueryClient();
 
-interface TabPanelProps {
-    children?: React.ReactNode;
-    index: number;
-    value: number;
-}
-
-function CustomTabPanel(props: TabPanelProps) {
-    const { children, value, index, ...other } = props;
-
-    return (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`simple-tabpanel-${index}`}
-            aria-labelledby={`simple-tab-${index}`}
-            {...other}
-            style={{ height: '100%' }}
-        >
-            {value === index && (
-                <Box sx={{ p: 3, height: '100%' }}>
-                    {children}
-                </Box>
-            )}
-        </div>
-    );
-}
-
 function App() {
-    const [value, setValue] = useState(0);
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Sync tab with URL
+    const isAdminPath = location.pathname.startsWith('/admin');
+    const [value, setValue] = useState(isAdminPath ? 1 : 0);
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue);
+        if (newValue === 0) navigate('/');
+        else navigate('/admin');
     };
 
     return (
@@ -65,13 +46,11 @@ function App() {
                         </Toolbar>
                     </AppBar>
                     <Container maxWidth="xl" sx={{ mt: 2, flex: 1, pb: 4, height: 'calc(100vh - 80px)' }}>
-                        <CustomTabPanel value={value} index={0}>
-                            {/* Default to San Jose for prototype */}
-                            <LegislationList jurisdiction="sanjose" />
-                        </CustomTabPanel>
-                        <CustomTabPanel value={value} index={1}>
-                            <GlassBoxViewer />
-                        </CustomTabPanel>
+                        <Routes>
+                            <Route path="/" element={<LegislationList jurisdiction="sanjose" />} />
+                            <Route path="/admin" element={<GlassBoxViewer />} />
+                            <Route path="/admin/runs/:runId" element={<GlassBoxViewer />} />
+                        </Routes>
                     </Container>
                 </Box>
             </ThemeProvider>

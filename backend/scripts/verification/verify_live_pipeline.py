@@ -8,6 +8,13 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("verify_live")
 
+import sys
+from pathlib import Path
+
+# Add backend to path
+backend_root = str(Path(__file__).parent.parent.parent)
+sys.path.insert(0, backend_root)
+
 # Imports
 from db.postgres_client import PostgresDB
 from services.llm.orchestrator import AnalysisPipeline
@@ -93,6 +100,42 @@ async def run_live_verification():
         # We need a 'legislation' table insert.
         # Since I don't recall exact schema columns for 'legislation' and I want to run fast, 
         # I'll generate a UUID and pass it.
+        # Create Jurisdiction & Source for consistency
+        jur_id = await db.get_or_create_jurisdiction(jurisdiction, "municipality")
+        source_id = await db.get_or_create_source(jur_id, f"{jurisdiction} API", "legislation_api", f"https://api.legistar.com/{jurisdiction}")
+
+        # Seed Raw Scrape (Step 0 Prerequisite)
+        print("   -> Seeding Mock Ingestion Source...")
+        import hashlib
+        import json
+        
+        content_hash = hashlib.sha256(bill_data["text"].encode("utf-8")).hexdigest()
+        mock_doc_id = str(uuid4())
+        scrape_record = {
+            "source_id": source_id,
+            "content_hash": content_hash,
+            "content_type": "text/plain",
+            "data": {"content": bill_data["text"], "bill_number": bill_number},
+            "url": f"api://{jurisdiction}/{bill_number}",
+            "metadata": {
+                "harvester": "verification_script", 
+                "bill_number": bill_number,
+                "seeded_at": str(datetime.now())
+            },
+            "storage_uri": f"s3://affordabot-artifacts/verification/{bill_number}.html",
+            "document_id": mock_doc_id
+        }
+        scrape_id = await db.create_raw_scrape(scrape_record)
+        print(f"✅ Created Raw Scrape: {scrape_id} (Doc ID: {mock_doc_id})")
+
+        # Seed Mock Vectors
+        mock_embedding = [0.1] * 4096
+        await db._execute(
+             "INSERT INTO document_chunks (id, document_id, content, embedding, metadata) VALUES ($1, $2, $3, $4, $5)",
+             str(uuid4()), mock_doc_id, "Mock chunk content", str(mock_embedding), json.dumps({"source": "mock"})
+        )
+        print(f"✅ Seeded Mock Vectors for {mock_doc_id}")
+
         bill_id = str(uuid4())
         print(f"✅ Created Bill: {bill_number} (ID: {bill_id})")
 
@@ -111,7 +154,7 @@ async def run_live_verification():
         }
         # Execute pipeline
         result = await pipeline.run(
-            bill_id=bill_id,
+            bill_id=bill_number,
             bill_text=bill_data["text"],
             jurisdiction=jurisdiction,
             models=models

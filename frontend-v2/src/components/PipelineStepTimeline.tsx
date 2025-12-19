@@ -74,7 +74,7 @@ export default function PipelineStepTimeline({ steps }: Props) {
                                 <JsonViewer data={step.output_result} />
                             )}
                             {activeTab[step.id] === 2 && (
-                                <JsonViewer data={step.model_config} />
+                                <JsonViewer data={step.model_info} />
                             )}
                         </AccordionDetails>
                     </Accordion>
