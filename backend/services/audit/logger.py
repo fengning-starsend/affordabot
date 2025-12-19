@@ -8,8 +8,8 @@ from db.postgres_client import PostgresDB
 
 logger = logging.getLogger(__name__)
 
-# Artifact directory for file logs
-ARTIFACT_DIR = "/home/fengning/.gemini/antigravity/brain/9112de99-6087-4677-88e8-ddcb9dc376f2"
+# Artifact directory for file logs (env override for CI, else default to temp)
+ARTIFACT_DIR = os.environ.get("ARTIFACT_DIR", "/tmp/audit_artifacts")
 
 class AuditLogger:
     """
