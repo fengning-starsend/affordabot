@@ -51,11 +51,21 @@ async def test_analysis_pipeline_integration():
     mock_llm.chat_completion = AsyncMock(side_effect=[mock_resp_1, mock_resp_2])
     
     # Mock DB
+    mock_db.get_latest_scrape_for_bill = AsyncMock(return_value={
+        "id": 1,
+        "document_id": "doc-123",
+        "url": "http://example.com/bill",
+        "content_hash": "abc",
+        "metadata": {"title": "Test Bill"},
+        "storage_uri": "s3://bucket/bill.pdf"
+    })
+    mock_db.get_vector_stats = AsyncMock(return_value={"chunk_count": 5})
     mock_db.create_pipeline_run = AsyncMock(return_value="run-1")
     mock_db.get_or_create_jurisdiction = AsyncMock(return_value=1)
     mock_db.store_legislation = AsyncMock(return_value=101)
     mock_db.store_impacts = AsyncMock()
     mock_db.complete_pipeline_run = AsyncMock()
+    mock_db.fail_pipeline_run = AsyncMock()
     
     # 2. Initialize Pipeline
     pipeline = AnalysisPipeline(mock_llm, mock_search, mock_db)
