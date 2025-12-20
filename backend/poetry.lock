@@ -2259,7 +2259,7 @@ optional = false
 python-versions = ">=3.13,<4.0"
 groups = ["main"]
 files = []
-develop = false
+develop = true
 
 [package.dependencies]
 cachetools = "^5.3.0"
@@ -2276,10 +2276,8 @@ typing-extensions = "^4.0.0"
 pgvector = ["asyncpg (>=0.29.0,<0.31.0)", "pgvector (>=0.3.0,<0.4.0)", "sqlalchemy (>=2.0.0,<3.0.0)"]
 
 [package.source]
-type = "git"
-url = "https://github.com/stars-end/llm-common.git"
-reference = "master"
-resolved_reference = "e0cebe375255a4963d7f87605196861febed97a3"
+type = "directory"
+url = "../packages/llm-common"
 
 [[package]]
 name = "lupa"
@@ -6984,4 +6982,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "410ea8988fbd28b2168d5ca8a13f56ea250aa28b3b5e7878a121ea2d4a54230e"
+content-hash = "486b5822463fa8072a8079680388e1ec1a6b9e83e3693373acef2ac7193fe11a"
