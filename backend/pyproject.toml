@@ -7,7 +7,13 @@ name = "affordabot-backend"
 version = "0.1.0"
 description = "Affordabot backend service"
 authors = ["Feng Ning <fengning@stars-end.ai>"]
-packages = [{include = "backend"}]
+packages = [
+    {include = "agents"},
+    {include = "services"},
+    {include = "routers"},
+    {include = "db"},
+    {include = "auth"},
+]
 
 [tool.poetry.dependencies]
 python = "^3.13"
