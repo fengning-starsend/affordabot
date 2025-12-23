@@ -144,6 +144,18 @@ verify-e2e:
 		cd backend && poetry run python scripts/verification/verify_e2e_glassbox.py; \
 	fi
 
+# Unified Glass Box Verification (10 Phases with Screenshots)
+verify-glassbox:
+	@echo "🔍 Running Affordabot Glass Box Verification (10 Phases)..."
+	@mkdir -p artifacts/verification
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/verify_sanjose_pipeline.py --screenshots --artifacts-dir ../artifacts/verification; \
+	else \
+		cd backend && poetry run python scripts/verification/verify_sanjose_pipeline.py --screenshots --artifacts-dir ../artifacts/verification; \
+	fi
+	@echo "📸 Screenshots saved to artifacts/verification/"
+
 # Run agent pipeline verification (Mocked)
 verify-agents:
 	@echo "🤖 Running Agent Pipeline Verification (Mocked - No Railway Needed)..."
