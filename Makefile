@@ -197,3 +197,28 @@ verify-env:
 verify-all: verify-env verify-auth verify-storage verify-agents verify-analysis verify-pipeline
 	@echo "✅ All Verifications Passed!"
 
+# Stage 1: Local Visual E2E (browser screenshots against localhost)
+verify-local:
+	@echo "🏠 Running Local Visual E2E (localhost)..."
+	@mkdir -p artifacts/verification/local
+	cd backend && poetry run python scripts/verification/visual_e2e/runner.py \
+		--stage local \
+		--base-url http://localhost:3000 \
+		--api-url http://localhost:8000
+
+# Stage 2: PR Environment Visual E2E (browser screenshots against Railway PR)
+verify-pr:
+	@echo "🚂 Running PR Visual E2E (Railway)..."
+	@mkdir -p artifacts/verification/pr
+	@if [ -z "$$RAILWAY_STATIC_URL" ]; then \
+		echo "⚠️  RAILWAY_STATIC_URL not set. Using localhost fallback..."; \
+		cd backend && poetry run python scripts/verification/visual_e2e/runner.py \
+			--stage pr --base-url http://localhost:3000; \
+	else \
+		cd backend && poetry run python scripts/verification/visual_e2e/runner.py \
+			--stage pr --base-url $$RAILWAY_STATIC_URL; \
+	fi
+
+# Alias for backward compat
+verify-visual: verify-pr
+
