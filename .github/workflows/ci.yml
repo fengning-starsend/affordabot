@@ -100,13 +100,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
 
-      - name: Run San Jose Pipeline Verification
-        run: |
-          cd backend
-          poetry run python scripts/verification/verify_sanjose_pipeline.py
-        env:
-          DATABASE_URL: postgresql://postgres:password@localhost:5432/affordabot
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+      # Note: verify_sanjose_pipeline.py requires Railway DB with SSL
+      # Run comprehensive verification via: make verify-all
+      # See .github/workflows/verify-overnight.yml for nightly E2E tests
 
   beads-validation:
     name: Beads Validation
