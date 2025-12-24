@@ -7,7 +7,7 @@ to analyze policy questions and generate evidence-backed responses.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, List, Optional
+from typing import AsyncGenerator, List, Optional
 import uuid
 
 from llm_common.agents import (
@@ -17,7 +17,7 @@ from llm_common.agents import (
     ToolContextManager,
     ToolRegistry,
 )
-from llm_common.agents.provenance import EvidenceEnvelope, Evidence
+from llm_common.agents.provenance import EvidenceEnvelope
 from llm_common.core import LLMClient
 
 logger = logging.getLogger(__name__)

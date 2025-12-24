@@ -6,7 +6,7 @@ using Playwright and trafilatura for content extraction.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from llm_common.agents.tools import (
     BaseTool,

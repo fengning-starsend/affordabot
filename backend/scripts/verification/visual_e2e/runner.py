@@ -68,7 +68,7 @@ class VisualE2ERunner:
             # Navigate to URL
             nav_ok = await browser.navigate(story.url, story.wait_for)
             if not nav_ok:
-                logger.warning(f"Navigation may have issues, continuing...")
+                logger.warning("Navigation may have issues, continuing...")
             
             # Small delay for page to settle
             await asyncio.sleep(0.5)
@@ -138,28 +138,28 @@ class VisualE2ERunner:
         status = "✅ PASSED" if passed == total else f"⚠️ {passed}/{total} PASSED"
         
         lines = [
-            f"# Visual E2E Report - Affordabot",
-            f"",
+            "# Visual E2E Report - Affordabot",
+            "",
             f"**Stage**: {self.stage.upper()}",
             f"**Environment**: {self.base_url}",
             f"**Timestamp**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             f"**Result**: {status}",
-            f"",
-            f"---",
-            f"",
+            "",
+            "---",
+            "",
         ]
         
         for result in self.results:
             status_icon = "✅" if result["passed"] else "❌"
             lines.append(f"## Story {result['id']}: {result['name']}")
-            lines.append(f"")
+            lines.append("")
             lines.append(f"**Status**: {status_icon} {'PASSED' if result['passed'] else 'FAILED'}")
             lines.append(f"**URL**: `{result['url']}`")
-            lines.append(f"")
+            lines.append("")
             
             if result["screenshot"]:
                 lines.append(f"![{result['name']}](./{result['screenshot']})")
-                lines.append(f"")
+                lines.append("")
             
             if result["assertions"]:
                 lines.append("**Assertions**:")

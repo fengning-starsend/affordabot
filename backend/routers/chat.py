@@ -7,7 +7,7 @@ the PolicyAgent to enable real-time Deep Chat UI updates.
 
 import json
 import logging
-from typing import AsyncGenerator, Optional
+from typing import Any, AsyncGenerator, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -95,7 +95,7 @@ async def stream_events(agent, message: str, jurisdiction: str) -> AsyncGenerato
 @router.post("/chat")
 async def chat_stream(
     request: ChatRequest,
-    agent: PolicyAgent = Depends(get_policy_agent),
+    agent: Any = Depends(get_policy_agent),
 ):
     """
     Stream policy analysis response via SSE.
