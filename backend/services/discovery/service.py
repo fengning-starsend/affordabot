@@ -27,7 +27,7 @@ class AutoDiscoveryService:
                     base_url="https://api.z.ai/api/paas/v4",
                 )
             )
-            self.model = "glm-4.6"
+            self.model = "glm-4.7"
         elif os.getenv("OPENROUTER_API_KEY"):
             self.client = instructor.from_openai(
                 AsyncOpenAI(

@@ -40,7 +40,7 @@ curl -X GET "http://localhost:8000/admin/models" \
   },
   {
     "provider": "zai",
-    "model_name": "glm-4.6",
+    "model_name": "glm-4.7",
     "priority": 1,
     "enabled": true,
     "use_case": "review"
@@ -63,7 +63,7 @@ curl -X POST "http://localhost:8000/admin/models" \
       },
       {
         "provider": "zai",
-        "model_name": "glm-4.6",
+        "model_name": "glm-4.7",
         "priority": 2,
         "enabled": true,
         "use_case": "review"
@@ -212,7 +212,7 @@ curl -X GET "http://localhost:8000/admin/analyses?bill_id=SB-123" \
     "jurisdiction": "san_jose",
     "bill_id": "SB-123",
     "step": "research",
-    "model_used": "zai/glm-4.6",
+    "model_used": "zai/glm-4.7",
     "timestamp": "2025-11-30T07:16:00Z",
     "status": "success",
     "result": {...},

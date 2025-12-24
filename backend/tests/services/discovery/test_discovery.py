@@ -7,7 +7,7 @@ async def test_auto_discovery_initialization():
     with patch.dict("os.environ", {"ZAI_API_KEY": "fake_key"}):
         service = AutoDiscoveryService()
         assert service.client is not None
-        assert service.model == "glm-4.6"
+        assert service.model == "glm-4.7"
 
     with patch.dict("os.environ", {"OPENROUTER_API_KEY": "fake_key"}, clear=True):
         service = AutoDiscoveryService()

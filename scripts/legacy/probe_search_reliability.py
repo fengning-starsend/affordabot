@@ -10,7 +10,7 @@ async def test_query(api_key: str, query: str):
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "glm-4.5",
+        "model": "glm-4.7",
         "messages": [{"role": "user", "content": f"Search for: {query}"}],
         "tools": [{
             "type": "web_search",
