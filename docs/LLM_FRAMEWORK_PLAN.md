@@ -150,7 +150,7 @@ class Analysis(BaseModel):
 
 # Structured output automatically validated
 result = client.chat.completions.create(
-    model="z-ai/glm-4.7-air:free",  # Free z.ai model!
+    model="z-ai/glm-4.7",  # Free z.ai model!
     messages=[{"role": "user", "content": "Analyze this..."}],
     response_model=Analysis
 )
@@ -159,7 +159,7 @@ result = client.chat.completions.create(
 **Sources**:
 - [OpenRouter + instructor guide](https://python.useinstructor.com/integrations/openrouter/)
 - [instructor library](https://github.com/567-labs/instructor)
-- [z.ai on OpenRouter](https://openrouter.ai/z-ai/glm-4.7-air:free)
+- [z.ai on OpenRouter](https://openrouter.ai/z-ai/glm-4.7)
 
 ### Framework Option 3: Direct z.ai SDK
 
@@ -277,7 +277,7 @@ from llm_common.models import LLMMessage, LLMResponse
 class OpenRouterClient(LLMClient):
     """OpenRouter client with instructor for structured outputs."""
 
-    def __init__(self, api_key: str, default_model: str = "z-ai/glm-4.7-air:free"):
+    def __init__(self, api_key: str, default_model: str = "z-ai/glm-4.7"):
         self.client = instructor.from_openai(
             OpenAI(
                 base_url="https://openrouter.ai/api/v1",
@@ -351,7 +351,7 @@ class OpenRouterClient(LLMClient):
 ### Via OpenRouter (Recommended)
 
 **Available Models**:
-- `z-ai/glm-4.7-air:free` - FREE tier (131K context)
+- `z-ai/glm-4.7` - FREE tier (131K context)
 - `z-ai/glm-4.5` - Paid tier (better quality)
 
 **Capabilities**:
@@ -369,7 +369,7 @@ client = OpenRouterClient(api_key="...")
 
 response = await client.chat_completion(
     messages=[LLMMessage(role="user", content="Analyze this bill...")],
-    model="z-ai/glm-4.7-air:free"
+    model="z-ai/glm-4.7"
 )
 ```
 
@@ -404,7 +404,7 @@ client = OpenAI(
 ### OpenRouter Pricing
 
 **Free Tier Models** (Perfect for development):
-- z-ai/glm-4.7-air:free - $0/M tokens
+- z-ai/glm-4.7 - $0/M tokens
 - deepseek/deepseek-r1:free - $0/M tokens
 - google/gemini-flash-1.5-8b:free - $0/M tokens
 
@@ -553,7 +553,7 @@ client = OpenAI(
 - [instructor GitHub](https://github.com/567-labs/instructor)
 - [z.ai API Docs](https://docs.z.ai/guides/overview/quick-start)
 - [z.ai Python SDK](https://github.com/zai-org/z-ai-sdk-python)
-- [z.ai on OpenRouter](https://openrouter.ai/z-ai/glm-4.7-air:free)
+- [z.ai on OpenRouter](https://openrouter.ai/z-ai/glm-4.7)
 
 ### Comparisons
 - [LiteLLM vs OpenRouter](https://www.truefoundry.com/blog/litellm-vs-openrouter)

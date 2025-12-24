@@ -274,7 +274,7 @@ This document specifies the complete architecture and implementation plan for a 
 2. AI Advisor Feature (prime-radiant-ai)
    ├─ Classify query intent
    ├─ Select appropriate model (OpenRouter)
-   │  └─ Prefer free tier (z-ai/glm-4.7-air:free, deepseek)
+   │  └─ Prefer free tier (z-ai/glm-4.7, deepseek)
    ├─ Check cache (if applicable)
    ├─ Build context with user data
    ├─ Call LLM via OpenRouter
@@ -568,7 +568,7 @@ response = await client.chat_completion(
 class OpenRouterConfig:
     api_key: str  # From OPENROUTER_API_KEY env var
     base_url: str = "https://openrouter.ai/api/v1"
-    default_model: str = "z-ai/glm-4.7-air:free"
+    default_model: str = "z-ai/glm-4.7"
     site_url: Optional[str] = None  # For rankings
     site_name: Optional[str] = None  # For rankings
     timeout: int = 30
@@ -578,7 +578,7 @@ class OpenRouterConfig:
 **Model Selection Strategy**:
 ```python
 class ModelTier(Enum):
-    FREE = "free"        # z-ai/glm-4.7-air:free, deepseek
+    FREE = "free"        # z-ai/glm-4.7, deepseek
     BUDGET = "budget"    # z-ai/glm-4.7, gpt-4o-mini
     STANDARD = "standard"  # gpt-4o, claude-3.5-sonnet
     PREMIUM = "premium"  # gpt-4-turbo, claude-opus
@@ -591,7 +591,7 @@ client = OpenRouterClient(api_key="...")
 # Try free models first
 response = await client.chat_completion(
     messages=[...],
-    model="z-ai/glm-4.7-air:free"
+    model="z-ai/glm-4.7"
 )
 
 # Compare models
@@ -879,7 +879,7 @@ MODEL_PRICING = {
         "input": 0.11,   # per 1M tokens
         "output": 0.28
     },
-    "z-ai/glm-4.7-air:free": {
+    "z-ai/glm-4.7": {
         "input": 0.0,
         "output": 0.0
     },
@@ -1200,7 +1200,7 @@ ZAI_ENABLE_THINKING=true
 
 # OpenRouter Configuration
 OPENROUTER_API_KEY=sk-or-your-openrouter-key
-OPENROUTER_DEFAULT_MODEL=z-ai/glm-4.7-air:free
+OPENROUTER_DEFAULT_MODEL=z-ai/glm-4.7
 OPENROUTER_SITE_NAME=affordabot
 OPENROUTER_SITE_URL=https://affordabot.com
 
@@ -2087,7 +2087,7 @@ supabase db push --production
 | Component | Provider | Model | Usage | Cost |
 |-----------|----------|-------|-------|------|
 | Web Search | z.ai | - | 1,500/day | $450 |
-| Generation | OpenRouter | glm-4.7-air:free | 50 bills/day | $0 |
+| Generation | OpenRouter | glm-4.7 | 50 bills/day | $0 |
 | Review | OpenRouter | deepseek-r1:free | 50 bills/day | $0 |
 | **Total** | | | | **$450/month** |
 
@@ -2121,7 +2121,7 @@ supabase db push --production
 
 | Feature | Model | Usage | Cost |
 |---------|-------|-------|------|
-| AI Advisor | glm-4.7-air:free | 1,000 requests/month | $0 |
+| AI Advisor | glm-4.7 | 1,000 requests/month | $0 |
 | Embeddings | text-embedding-3-small | 100k texts/month | $1 |
 | **Total** | | | **$1/month** |
 
@@ -2206,7 +2206,7 @@ except ProviderError:
 # Check budget before expensive operation
 if cost_tracker.projected_monthly_cost() > BUDGET_LIMIT:
     # Fallback to cheaper model
-    model = "glm-4.7-air:free"
+    model = "glm-4.7"
 else:
     model = "gpt-4o"
 ```
