@@ -192,7 +192,7 @@ async def clerk_login(page: Page, base_url: str, email: str, password: str, outp
         screenshot = await page.screenshot()
         with open(output_dir / "00_login_bypass_attempt.png", "wb") as f:
             f.write(screenshot)
-        print(f"    📸 Bypass attempt screenshot saved")
+        print("    📸 Bypass attempt screenshot saved")
         
         # Check if we're on admin dashboard (bypass worked) or sign-in page
         current_url = page.url

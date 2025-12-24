@@ -6,8 +6,6 @@ Captures terminal output and optionally browser screenshots for verification evi
 Designed to work headless in CI environments.
 """
 
-import os
-import sys
 from datetime import datetime
 from pathlib import Path
 

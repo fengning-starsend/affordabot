@@ -56,7 +56,6 @@ class SearchPipelineService:
 
         # 2. Ingestion (Parallel)
         logger.info("   ↳ Step 2: Ingestion & Indexing...")
-        doc_ids = []
         
         # Run ingestion in parallel
         ingest_tasks = [

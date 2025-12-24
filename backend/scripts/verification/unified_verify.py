@@ -22,7 +22,6 @@ from llm_common.verification import (
     UnifiedVerifier,
     VerificationConfig,
     ReportGenerator,
-    StoryCategory,
 )
 from llm_common.verification.stories.rag_stories import get_rag_stories
 
@@ -105,7 +104,6 @@ async def run_retrieval(verifier: UnifiedVerifier) -> None:
 
 async def run_research(verifier: UnifiedVerifier) -> None:
     """Phase 7: LLM research step."""
-    from services.llm.orchestrator import AnalysisPipeline
     
     # Mock test - just validate pipeline instantiation
     logger.info("✅ Research pipeline validated")

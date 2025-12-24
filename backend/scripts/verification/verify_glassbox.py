@@ -10,7 +10,6 @@ Usage:
 import sys
 import os
 import subprocess
-import argparse
 
 def main():
     print("🔍 Affordabot Glass Box Verification")

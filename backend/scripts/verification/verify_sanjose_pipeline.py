@@ -24,7 +24,6 @@ import os
 import logging
 import asyncio
 import argparse
-from datetime import datetime
 from dotenv import load_dotenv
 
 # Load env vars
@@ -156,7 +155,7 @@ class GlassBoxVerifier:
         output_lines = []
         try:
             jur_id = await self.db.get_or_create_jurisdiction("City of San Jose", "city")
-            output_lines.append(f"   Jurisdiction: City of San Jose")
+            output_lines.append("   Jurisdiction: City of San Jose")
             output_lines.append(f"   ID: {jur_id}")
             output_lines.append("   ✅ Jurisdiction ready")
             
@@ -195,7 +194,7 @@ class GlassBoxVerifier:
             discovery_svc = SearchDiscoveryService()
             
             results = await discovery_svc.find_urls("City of San Jose ADU Guide", count=3)
-            output_lines.append(f"   Query: 'City of San Jose ADU Guide'")
+            output_lines.append("   Query: 'City of San Jose ADU Guide'")
             output_lines.append(f"   Found: {len(results)} URLs")
             
             for i, r in enumerate(results, 1):
@@ -377,7 +376,7 @@ class GlassBoxVerifier:
         script_path = os.path.join(os.path.dirname(__file__), '../cron/run_rag_spiders.py')
         
         if not os.path.exists(script_path):
-            output_lines.append(f"   ⚠️  run_rag_spiders.py not found")
+            output_lines.append("   ⚠️  run_rag_spiders.py not found")
             output_lines.append("   Skipping backbone scrape")
             content = "\n".join(output_lines)
             print(content)
