@@ -14,7 +14,7 @@ class ZaiExtractor(ExtractorClient):
     and Z.ai LLM (via Instructor) for structured extraction.
     """
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "glm-4.5"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "glm-4.7"):
         self.api_key = api_key or os.environ.get("ZAI_API_KEY")
         
         self.web_reader = WebReaderClient(api_key=self.api_key)

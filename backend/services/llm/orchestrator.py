@@ -51,6 +51,12 @@ class AnalysisPipeline:
         """
         Run full pipeline.
         
+        Args:
+            bill_id: Bill identifier (e.g., "AB-1234")
+            bill_text: Full bill text
+            jurisdiction: Jurisdiction (e.g., "California")
+            models: {"research": "gpt-4o-mini", "generate": "claude-3.5-sonnet", "review": "glm-4.7"}
+        
         Returns:
             Final analysis (validated LegislationAnalysisResponse)
         """

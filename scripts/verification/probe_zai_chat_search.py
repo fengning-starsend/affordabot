@@ -20,7 +20,7 @@ async def main():
     }
     
     payload = {
-        "model": "glm-4.5",
+        "model": "glm-4.7",
         "messages": [{"role": "user", "content": "What is the latest news from San Jose City Council?"}],
         # Matching User's exact config from Step 789
         "tools": [{

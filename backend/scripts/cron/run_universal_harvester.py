@@ -24,7 +24,7 @@ logger = logging.getLogger("harvester")
 # Config
 ZAI_API_KEY = os.environ.get("ZAI_API_KEY")
 ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4/chat/completions"
-MODEL = "glm-4.6"
+MODEL = "glm-4.7"
 
 class UniversalHarvester:
     def __init__(self):
@@ -128,7 +128,7 @@ class UniversalHarvester:
             "content_type": "text/markdown",
             "data": {"content": markdown_content},
             "url": url,
-            "metadata": {"harvester": "zai-glm-4.6", "task_id": task_id}
+            "metadata": {"harvester": "zai-glm-4.7", "task_id": task_id}
         }
         
         scrape_id = await self.db.create_raw_scrape(scrape_record)

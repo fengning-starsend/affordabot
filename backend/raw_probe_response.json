@@ -12,7 +12,7 @@
   ],
   "created": 1764970762,
   "id": "202512060539034fa5570f28324c38",
-  "model": "glm-4.5",
+  "model": "glm-4.7",
   "request_id": "202512060539034fa5570f28324c38",
   "usage": {
     "completion_tokens": 666,
