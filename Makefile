@@ -283,3 +283,16 @@ verify-admin-pipeline-pr:
 		--url https://frontend-affordabot-pr-160.up.railway.app \
 		--output ../artifacts/verification/admin_pipeline_pr
 
+# Unified CI Verification (uses llm-common framework, overnight CI)
+verify-ci:
+	@echo "🔬 Running Unified CI Verification (12 RAG stories)..."
+	@mkdir -p artifacts/verification
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/unified_verify.py \
+			--base-url $${FRONTEND_URL:-http://localhost:3000}; \
+	else \
+		cd backend && poetry run python scripts/verification/unified_verify.py \
+			--base-url $${FRONTEND_URL:-http://localhost:3000}; \
+	fi
+
