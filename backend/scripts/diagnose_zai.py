@@ -5,7 +5,7 @@ import asyncio
 # Config
 API_KEY = os.environ.get("ZAI_API_KEY")
 BASE_URL = "https://api.z.ai/api/coding/paas/v4/chat/completions"
-MODEL = "glm-4.6"
+MODEL = "glm-4.7"
 
 TEST_CASES = [
     {

@@ -19,7 +19,7 @@ class SearchDiscoveryService:
         self.api_key = api_key or os.environ.get("ZAI_API_KEY")
         # Use Coding Endpoint for Chat as validated
         self.endpoint = "https://api.z.ai/api/coding/paas/v4/chat/completions"
-        self.model = "glm-4.5"
+        self.model = "glm-4.7"
     
     async def find_urls(self, query: str, count: int = 5) -> List[WebSearchResult]:
         """

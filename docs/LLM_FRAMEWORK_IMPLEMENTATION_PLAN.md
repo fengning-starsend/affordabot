@@ -274,7 +274,7 @@ This document specifies the complete architecture and implementation plan for a 
 2. AI Advisor Feature (prime-radiant-ai)
    ├─ Classify query intent
    ├─ Select appropriate model (OpenRouter)
-   │  └─ Prefer free tier (z-ai/glm-4.5-air:free, deepseek)
+   │  └─ Prefer free tier (z-ai/glm-4.7, deepseek)
    ├─ Check cache (if applicable)
    ├─ Build context with user data
    ├─ Call LLM via OpenRouter
@@ -517,7 +517,7 @@ class SearchResult:
 class ZaiConfig:
     api_key: str  # From ZAI_API_KEY env var
     base_url: str = "https://api.z.ai/api/paas/v4/"
-    default_model: str = "glm-4.6"
+    default_model: str = "glm-4.7"
     use_thinking_mode: bool = False  # Enable for complex reasoning
     timeout: int = 30  # Request timeout
     max_retries: int = 3
@@ -535,14 +535,14 @@ client = ZaiClient(api_key="...")
 # Standard completion
 response = await client.chat_completion(
     messages=[...],
-    model="glm-4.6",
+    model="glm-4.7",
     temperature=0.7
 )
 
 # With thinking mode
 response = await client.chat_completion(
     messages=[...],
-    model="glm-4.6",
+    model="glm-4.7",
     thinking=True  # z.ai-specific
 )
 
@@ -568,7 +568,7 @@ response = await client.chat_completion(
 class OpenRouterConfig:
     api_key: str  # From OPENROUTER_API_KEY env var
     base_url: str = "https://openrouter.ai/api/v1"
-    default_model: str = "z-ai/glm-4.5-air:free"
+    default_model: str = "z-ai/glm-4.7"
     site_url: Optional[str] = None  # For rankings
     site_name: Optional[str] = None  # For rankings
     timeout: int = 30
@@ -578,8 +578,8 @@ class OpenRouterConfig:
 **Model Selection Strategy**:
 ```python
 class ModelTier(Enum):
-    FREE = "free"        # z-ai/glm-4.5-air:free, deepseek
-    BUDGET = "budget"    # z-ai/glm-4.5, gpt-4o-mini
+    FREE = "free"        # z-ai/glm-4.7, deepseek
+    BUDGET = "budget"    # z-ai/glm-4.7, gpt-4o-mini
     STANDARD = "standard"  # gpt-4o, claude-3.5-sonnet
     PREMIUM = "premium"  # gpt-4-turbo, claude-opus
 ```
@@ -591,13 +591,13 @@ client = OpenRouterClient(api_key="...")
 # Try free models first
 response = await client.chat_completion(
     messages=[...],
-    model="z-ai/glm-4.5-air:free"
+    model="z-ai/glm-4.7"
 )
 
 # Compare models
 results = await client.compare_models(
     messages=[...],
-    models=["z-ai/glm-4.5", "openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
+    models=["z-ai/glm-4.7", "openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
     response_model=BillAnalysis
 )
 ```
@@ -660,7 +660,7 @@ client = UnifiedLLMClient(
 # Automatically routes to best provider
 response = await client.chat_completion(
     messages=[...],
-    model="glm-4.6",  # Uses z.ai direct
+    model="glm-4.7",  # Uses z.ai direct
     thinking=True  # z.ai feature detected → routes to z.ai
 )
 
@@ -875,11 +875,11 @@ CREATE INDEX idx_llm_costs_user ON llm_costs(user_id);
 ```python
 # Pricing table (updated periodically)
 MODEL_PRICING = {
-    "glm-4.6": {
+    "glm-4.7": {
         "input": 0.11,   # per 1M tokens
         "output": 0.28
     },
-    "z-ai/glm-4.5-air:free": {
+    "z-ai/glm-4.7": {
         "input": 0.0,
         "output": 0.0
     },
@@ -898,7 +898,7 @@ tracker = CostTracker(db_client=supabase)
 # Track single request
 await tracker.track_request(
     provider="z.ai",
-    model="glm-4.6",
+    model="glm-4.7",
     prompt_tokens=1000,
     completion_tokens=500,
     user_id="user_123",
@@ -941,7 +941,7 @@ alert = await tracker.check_budget(
     "level": "INFO",
     "event": "llm_request",
     "provider": "z.ai",
-    "model": "glm-4.6",
+    "model": "glm-4.7",
     "tokens": {
         "prompt": 1000,
         "completion": 500
@@ -1133,7 +1133,7 @@ class PipelineConfig:
     """Pipeline configuration."""
 
     # Model selection
-    generation_model: str = "glm-4.6"  # z.ai direct
+    generation_model: str = "glm-4.7"  # z.ai direct
     review_model: str = "gpt-4o"  # OpenRouter
 
     # z.ai features
@@ -1200,7 +1200,7 @@ ZAI_ENABLE_THINKING=true
 
 # OpenRouter Configuration
 OPENROUTER_API_KEY=sk-or-your-openrouter-key
-OPENROUTER_DEFAULT_MODEL=z-ai/glm-4.5-air:free
+OPENROUTER_DEFAULT_MODEL=z-ai/glm-4.7
 OPENROUTER_SITE_NAME=affordabot
 OPENROUTER_SITE_URL=https://affordabot.com
 
@@ -1786,7 +1786,7 @@ workspace/
        """Test cost calculation for different models."""
        usage = TokenUsage(prompt_tokens=1000, completion_tokens=500, total_tokens=1500)
 
-       cost_glm = usage.calculate_cost("glm-4.6")
+       cost_glm = usage.calculate_cost("glm-4.7")
        assert cost_glm == 0.00025  # (1000*0.11 + 500*0.28) / 1M
 
        cost_gpt4 = usage.calculate_cost("gpt-4o")
@@ -2087,7 +2087,7 @@ supabase db push --production
 | Component | Provider | Model | Usage | Cost |
 |-----------|----------|-------|-------|------|
 | Web Search | z.ai | - | 1,500/day | $450 |
-| Generation | OpenRouter | glm-4.5-air:free | 50 bills/day | $0 |
+| Generation | OpenRouter | glm-4.7 | 50 bills/day | $0 |
 | Review | OpenRouter | deepseek-r1:free | 50 bills/day | $0 |
 | **Total** | | | | **$450/month** |
 
@@ -2121,7 +2121,7 @@ supabase db push --production
 
 | Feature | Model | Usage | Cost |
 |---------|-------|-------|------|
-| AI Advisor | glm-4.5-air:free | 1,000 requests/month | $0 |
+| AI Advisor | glm-4.7 | 1,000 requests/month | $0 |
 | Embeddings | text-embedding-3-small | 100k texts/month | $1 |
 | **Total** | | | **$1/month** |
 
@@ -2206,7 +2206,7 @@ except ProviderError:
 # Check budget before expensive operation
 if cost_tracker.projected_monthly_cost() > BUDGET_LIMIT:
     # Fallback to cheaper model
-    model = "glm-4.5-air:free"
+    model = "glm-4.7"
 else:
     model = "gpt-4o"
 ```

@@ -129,7 +129,7 @@ AnalysisPipeline
 
 **Key Features**:
 - ✅ Structured outputs via Pydantic (BillAnalysis, ReviewCritique)
-- ✅ Model selection per step (research: gpt-4o-mini, generate: claude-3.5-sonnet, review: glm-4.5)
+- ✅ Model selection per step (research: gpt-4o-mini, generate: claude-3.5-sonnet, review: glm-4.7)
 - ✅ Cost tracking per pipeline run
 - ✅ Database logging (analysis_history table)
 - ✅ Feature flag (ENABLE_NEW_LLM_PIPELINE)

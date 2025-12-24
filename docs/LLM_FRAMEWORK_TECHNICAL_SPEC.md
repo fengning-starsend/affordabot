@@ -182,7 +182,7 @@ class LLMClient:
         
         Args:
             messages: List of {"role": "user/assistant/system", "content": "..."}
-            model: Model name (e.g., "gpt-4o", "z-ai/glm-4.5")
+            model: Model name (e.g., "gpt-4o", "z-ai/glm-4.7")
             response_model: Pydantic model for structured output
             temperature: 0.0-1.0
             max_tokens: Max output tokens
@@ -668,7 +668,7 @@ class AnalysisPipeline:
             bill_id: Bill identifier (e.g., "AB-1234")
             bill_text: Full bill text
             jurisdiction: Jurisdiction (e.g., "California")
-            models: {"research": "gpt-4o-mini", "generate": "claude-3.5-sonnet", "review": "glm-4.5"}
+            models: {"research": "gpt-4o-mini", "generate": "claude-3.5-sonnet", "review": "glm-4.7"}
         
         Returns:
             Final analysis (validated BillAnalysis)
@@ -1599,7 +1599,7 @@ analysis = await client.chat(
 # Fallback chain
 response = await client.chat_with_fallback(
     messages=[...],
-    models=["gpt-4o", "claude-3.5-sonnet", "glm-4.5"]
+    models=["gpt-4o", "claude-3.5-sonnet", "glm-4.7"]
 )
 ```
 
