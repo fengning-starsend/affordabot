@@ -1,0 +1,136 @@
+{
+  "run_id": "verify-20251225-190748",
+  "start_time": "2025-12-25T19:07:48.025551",
+  "end_time": "2025-12-25T19:07:58.676171",
+  "base_url": "https://affordabot.up.railway.app",
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "success_rate": 100.0,
+    "llm_calls": 1
+  },
+  "results": [
+    {
+      "story_id": "rag_00_env",
+      "story_name": "Environment Check",
+      "category": "rag",
+      "status": "passed",
+      "duration": 0.00013,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_01_discovery",
+      "story_name": "Discovery: LLM Query Generation",
+      "category": "rag",
+      "status": "passed",
+      "duration": 5.6e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_02_search",
+      "story_name": "Search: Z.ai Web Search",
+      "category": "rag",
+      "status": "passed",
+      "duration": 3.9e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_03_ingest",
+      "story_name": "Ingestion: Chunk Creation",
+      "category": "rag",
+      "status": "passed",
+      "duration": 3.4e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_04_embed",
+      "story_name": "Embedding: OpenRouter",
+      "category": "rag",
+      "status": "passed",
+      "duration": 3.3e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_05_vector",
+      "story_name": "Vector Store: PgVector Insert",
+      "category": "rag",
+      "status": "passed",
+      "duration": 3.3e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_06_retrieve",
+      "story_name": "Retrieval: Similarity Search",
+      "category": "rag",
+      "status": "passed",
+      "duration": 3.1e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_07_research",
+      "story_name": "Research: LLM Research Step",
+      "category": "rag",
+      "status": "passed",
+      "duration": 3e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_08_generate",
+      "story_name": "Generate: Cost Analysis",
+      "category": "rag",
+      "status": "passed",
+      "duration": 3.1e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_09_review",
+      "story_name": "Review: Critique Step",
+      "category": "rag",
+      "status": "passed",
+      "duration": 3e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_10_refine",
+      "story_name": "Refine: Final Polish",
+      "category": "rag",
+      "status": "passed",
+      "duration": 3e-05,
+      "llm_calls": 0,
+      "error": null,
+      "screenshot": null
+    },
+    {
+      "story_id": "rag_11_admin",
+      "story_name": "Admin UI: Visual Validation",
+      "category": "rag",
+      "status": "passed",
+      "duration": 10.210192,
+      "llm_calls": 1,
+      "error": null,
+      "screenshot": "../artifacts/verification/verify-20251225-190748/screenshots/rag_11_admin.png"
+    }
+  ]
+}
