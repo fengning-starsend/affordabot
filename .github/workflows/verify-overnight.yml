@@ -59,20 +59,23 @@ jobs:
           poetry run playwright install chromium
 
           
-      - name: Run Unified Verification (12 RAG Stories)
+      - name: Run Admin Pipeline Verification (GLM-4.6V + Screenshots)
         env:
           ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
           FRONTEND_URL: ${{ github.event.inputs.base_url || 'https://affordabot.up.railway.app' }}
         run: |
           export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
           eval "$(mise activate bash)"
           mkdir -p artifacts/verification
           cd backend
-          poetry run python scripts/verification/unified_verify.py \
-            --base-url "$FRONTEND_URL" \
-            --output ../artifacts/verification
+          # Run the real admin pipeline verification with screenshots + GLM-4.6V
+          poetry run python scripts/verification/admin_pipeline_agent.py \
+            --url "$FRONTEND_URL" \
+            --output ../artifacts/verification/admin_pipeline
           
 
       - name: Upload Artifacts
