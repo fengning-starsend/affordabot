@@ -16,11 +16,14 @@ on:
         default: ''
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.13'
 
 jobs:
   verify-affordabot:
     runs-on: self-hosted
+    permissions:
+      contents: read
+      issues: write
     timeout-minutes: 45
     
     steps:
