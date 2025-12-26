@@ -271,14 +271,15 @@ verify-visual: verify-admin-pipeline
 
 # UISmokeAgent Admin Pipeline Verification (GLM-4.6V visual analysis with Clerk auth)
 # Uses railway run to get TEST_USER_EMAIL, TEST_USER_PASSWORD, and ZAI_API_KEY from Railway env
+# Default to Railway dev frontend when FRONTEND_URL not set (for verify-dev)
+RAILWAY_DEV_FRONTEND_URL ?= https://frontend-dev-5093.up.railway.app
 verify-admin-pipeline:
 	@echo "🤖 Running UISmokeAgent Admin Pipeline Verification..."
 	@mkdir -p artifacts/verification/admin_pipeline
 	@if [ -z "$$FRONTEND_URL" ]; then \
-		echo "FRONTEND_URL not set, using default localhost:3000..."; \
-		echo "For authenticated tests on Railway, set FRONTEND_URL and run via: railway run make verify-admin-pipeline"; \
+		echo "FRONTEND_URL not set, using Railway dev: $(RAILWAY_DEV_FRONTEND_URL)"; \
 		cd backend && poetry run python scripts/verification/admin_pipeline_agent.py \
-			--url http://localhost:3000 \
+			--url $(RAILWAY_DEV_FRONTEND_URL) \
 			--output ../artifacts/verification/admin_pipeline; \
 	else \
 		echo "Using FRONTEND_URL=$$FRONTEND_URL"; \
