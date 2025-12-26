@@ -1,0 +1,31 @@
+id: extraction_fidelity_check
+description: "Verify that key economic keywords in the source PDF/HTML are successfully extracted for analysis"
+persona: data_engineer
+priority: P0
+timeout_seconds: 90
+goals:
+  - "Confirm ingestion preserves numerical figures (e.g. $500)"
+  - "Verify preservation of table data or list structures"
+  - "Confirm no 'regex loss' of critical fiscal notes"
+start_url: "/admin/sources/debug/BILL-TEST-101"
+steps:
+  - id: step-1-input-validation
+    description: |
+      Verify the 'Golden Data' source file contains the specific string:
+      "$500 annual fee per unit".
+    glm_prompt: "Does the source preview show the text '$500 annual fee'?"
+    expected: "Source text confirmed"
+    exploration_budget: 1
+
+  - id: step-2-extraction-validation
+    description: |
+      Check the 'Processed Text' or 'Chunks' view.
+      Search for the same "$500 annual fee" string.
+      If missing, ingestion failed to capture critical economic data.
+    glm_prompt: "Is the '$500 annual fee' string present in the extracted chunks?"
+    expected: "Critical data preserved in ingestion"
+    exploration_budget: 1
+
+metadata:
+  tags: ["ingestion", "data-quality", "rigor"]
+  priority: 1

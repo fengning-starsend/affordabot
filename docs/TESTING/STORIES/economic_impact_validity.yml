@@ -1,0 +1,42 @@
+id: economic_impact_validity
+description: "Verify that known economic inputs result in correct impact classifications (Econ 101 Logic)"
+persona: economic_expert
+priority: P0
+timeout_seconds: 120
+goals:
+  - "Verify 'Golden Data' bill produces expected Impact calculation"
+  - "Confirm granularity of impact categories (Housing vs General)"
+  - "Check that direct tax increases flag as 'High Negative Cost of Living'"
+start_url: "/admin/jurisdiction/san-jose/bills/BILL-TEST-101"
+steps:
+  - id: step-1-verify-baseline-inputs
+    description: |
+      Open the 'Golden Data' test bill (BILL-TEST-101) which contains a known 
+      $500/year property tax increase.
+      Verify the Raw Data tab confirms this text is present.
+    glm_prompt: "Does the Raw Data view show text mentioning '$500 property tax increase'?"
+    expected: "Raw text confirms input data"
+    exploration_budget: 1
+
+  - id: step-2-validate-impact-score
+    description: |
+      Check the 'Economic Analysis' tab. 
+      The 'Direct Cost' score should be High (8-10).
+      The 'Housing Affordability' dimension should be High Negative.
+    glm_prompt: "What is the Direct Cost score? Is Housing Affordability marked as Negative Impact?"
+    expected: "Score > 8 and Negative Housing Impact"
+    exploration_budget: 1
+
+  - id: step-3-verify-econ-reasoning
+    description: |
+      Read the 'Reasoning' section.
+      It should cite 'Property Tax' as a direct supply-side cost driver.
+      (Econ 101: Tax incidence logic).
+    glm_prompt: "Does the reasoning explicitly link property tax to increased housing costs?"
+    expected: "Reasoning cites tax incidence"
+    exploration_budget: 1
+
+metadata:
+  tags: ["economics", "validity", "golden-data"]
+  priority: 1
+  requires_seed_data: true

@@ -1,0 +1,38 @@
+id: trend_integrity_check
+description: "Verify that aggregate dashboards accurately reflect underlying bill data (Rigor Check)"
+persona: economic_analyst
+priority: P1
+timeout_seconds: 120
+goals:
+  - "Verify 'Total Cost Impact' matches sum of active bills"
+  - "Check consistency between 'Recent Activity' and 'Dashboard Stats'"
+  - "Confirm time-series direction matches bill timestamps"
+start_url: "/admin/jurisdiction/san-jose/dashboard"
+steps:
+  - id: step-1-capture-dashboard-stats
+    description: |
+      Record the 'Total Scraped' and 'High Impact Count' stats from the dashboard header.
+    glm_prompt: "What are the values for Total Scraped and High Impact Count?"
+    expected: "Stats visible"
+    exploration_budget: 1
+
+  - id: step-2-cross-reference-list
+    description: |
+      Navigate to the 'Bills' list.
+      Count the visible items (or verify pagination count).
+      Does List Count == Dashboard Count? (Rigor Check).
+    glm_prompt: "Does the number of bills in the list match the dashboard total?"
+    expected: "Counts match exactly"
+    exploration_budget: 1
+
+  - id: step-3-verify-trend-direction
+    description: |
+      Check the 'Activity Trend' chart (if available) or recent history.
+      If a new bill was added today, the trend should show activity 'Today'.
+    glm_prompt: "Does the activity log/chart show recent activity corresponding to today?"
+    expected: "Trend reflects recent ingestion"
+    exploration_budget: 1
+
+metadata:
+  tags: ["rigor", "data-integrity", "dashboard"]
+  priority: 2

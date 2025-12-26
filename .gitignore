@@ -51,3 +51,7 @@ saratoga.html
 supabase/supabase/.temp/
 **/pnpm-lock.yaml
 !pnpm-lock.yaml
+
+# Verification Artifacts
+backend/artifacts/verification/stories/*.png
+backend/artifacts/verification/stories/*.json

@@ -1,79 +1,48 @@
 import base64
-import logging
-import asyncio
-from typing import Any, List, Dict
-from urllib.parse import urljoin
-from playwright.async_api import Page, async_playwright
-
-logger = logging.getLogger(__name__)
+from typing import Any, List, Optional
+from playwright.async_api import Page
 
 class PlaywrightAdapter:
-    """Simplified Playwright implementation of BrowserAdapter protocol."""
-
-    def __init__(self, page: Page, base_url: str):
+    """Adapts Playwright Page to llm-common BrowserAdapter protocol."""
+    
+    def __init__(self, page: Page, base_url: Optional[str] = None):
         self.page = page
-        self.base_url = base_url.rstrip("/")
-        self._console_errors: List[str] = []
-        self._network_errors: List[Dict[str, Any]] = []
-        self._setup_listeners()
-
-    def _setup_listeners(self) -> None:
-        def on_console(msg):
-            if msg.type in ("error", "warning"):
-                self._console_errors.append(f"[{msg.type}] {msg.text}")
-
-        def on_request_failed(request):
-            failure = request.failure
-            if failure:
-                self._network_errors.append({
-                    "url": request.url,
-                    "method": request.method,
-                    "message": failure,
-                    "status": None  # Failure before response
-                })
-
-        self.page.on("console", on_console)
-        self.page.on("requestfailed", on_request_failed)
+        self.base_url = base_url.rstrip("/") if base_url else None
+        self._console_errors = []
+        self._network_errors = []
 
     async def navigate(self, path: str) -> None:
-        url = urljoin(self.base_url, path)
-        logger.info(f"Navigating to {url}")
-        # Wait for networkidle AND domcontentloaded
-        await self.page.goto(url, wait_until="networkidle", timeout=30000)
-        # Explicit sleep to ensure React hydration/rendering completes
-        import asyncio
-        await asyncio.sleep(2)
+        """Navigate to a relative path or absolute URL."""
+        target_url = path
+        if self.base_url:
+            if path.startswith("/"):
+                target_url = f"{self.base_url}{path}"
+            elif not path.startswith("http"):
+                target_url = f"{self.base_url}/{path}"
+             
+        await self.page.goto(target_url, wait_until="networkidle", timeout=30000)
 
     async def click(self, target: str) -> None:
-        logger.info(f"Clicking: {target}")
-        selector = target if target.startswith(("text=", "/", "#", ".")) else f"text={target}"
-        # Wait for element to be visible and stable
+        """Click an element by selector or text content."""
         try:
-            await self.page.wait_for_selector(selector, state="visible", timeout=10000)
-            await self.page.click(selector, timeout=5000)
-            # Wait for potential navigation or UI update
-            await self.page.wait_for_load_state("networkidle")
-            await asyncio.sleep(1)
-        except Exception as e:
-            logger.error(f"Click failed for {selector}: {e}")
-            raise
+            await self.page.click(target, timeout=2000)
+        except Exception:
+            await self.page.click(f"text={target}", timeout=5000)
+
     async def type_text(self, selector: str, text: str) -> None:
-        logger.info(f"Typing into {selector}")
-        await self.page.fill(selector, text, timeout=5000)
+        """Type text into an input field."""
+        await self.page.fill(selector, text)
 
     async def screenshot(self) -> str:
-        screenshot_bytes = await self.page.screenshot(type="png")
+        """Capture screenshot and return as base64 string."""
+        screenshot_bytes = await self.page.screenshot(full_page=False)
         return base64.b64encode(screenshot_bytes).decode("utf-8")
 
     async def get_console_errors(self) -> List[str]:
-        errors = self._console_errors.copy()
-        self._console_errors.clear()
-        return errors
+        return self._console_errors
 
-    async def get_network_errors(self) -> List[Dict[str, Any]]:
-        errors = self._network_errors.copy()
-        self._network_errors.clear()
-        return errors
+    async def get_network_errors(self) -> List[dict[str, Any]]:
+        return self._network_errors
 
     async def wait_for_selector(self, selector: str, timeout_ms: int = 5000) -> None:
         await self.page.wait_for_selector(selector, timeout=timeout_ms)
@@ -81,16 +50,23 @@ class PlaywrightAdapter:
     async def get_current_url(self) -> str:
         return self.page.url
 
-    async def get_content(self) -> str:
-        return await self.page.content()
-
     async def close(self) -> None:
         await self.page.close()
 
-async def create_browser_context(base_url: str, headless: bool = True):
-    playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=headless)
-    context = await browser.new_context(viewport={"width": 1280, "height": 720})
-    page = await context.new_page()
-    adapter = PlaywrightAdapter(page, base_url)
-    return playwright, browser, adapter
+    async def get_content(self) -> str:
+        return await self.page.content()
+
+    def start_tracing(self):
+        self.page.on("console", lambda msg: self._console_errors.append(msg.text) if msg.type == "error" else None)
+        self.page.on("requestfailed", lambda req: self._network_errors.append({
+            "url": req.url,
+            "method": req.method,
+            "message": req.failure if req.failure else "Unknown error",
+            "status": 0
+        }))
+        self.page.on("response", lambda res: self._network_errors.append({
+            "url": res.url,
+            "method": res.request.method,
+            "message": f"Status {res.status}",
+            "status": res.status
+        }) if res.status >= 400 else None)

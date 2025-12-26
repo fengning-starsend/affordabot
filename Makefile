@@ -280,28 +280,35 @@ verify-admin-pipeline:
 	@mkdir -p artifacts/verification/admin_pipeline
 	@if [ -z "$$FRONTEND_URL" ]; then \
 		echo "FRONTEND_URL not set, using Railway dev: $(RAILWAY_DEV_FRONTEND_URL)"; \
-		cd backend && poetry run python scripts/verification/admin_pipeline_agent.py \
-			--url $(RAILWAY_DEV_FRONTEND_URL) \
-			--output ../artifacts/verification/admin_pipeline; \
+		TARGET_URL="$(RAILWAY_DEV_FRONTEND_URL)"; \
 	else \
 		echo "Using FRONTEND_URL=$$FRONTEND_URL"; \
-		echo "Auth: TEST_USER_EMAIL=$${TEST_USER_EMAIL:-(not set)}"; \
+		TARGET_URL="$$FRONTEND_URL"; \
+	fi; \
+	if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		cd backend && railway run poetry run python scripts/verification/admin_pipeline_agent.py \
+			--url $$TARGET_URL \
+			--output ../artifacts/verification/admin_pipeline; \
+	else \
 		cd backend && poetry run python scripts/verification/admin_pipeline_agent.py \
-			--url $$FRONTEND_URL \
+			--url $$TARGET_URL \
 			--output ../artifacts/verification/admin_pipeline; \
 	fi
 
 # Story-driven verification using docs/TESTING/STORIES/*.yml
 # Validates admin console against user stories with GLM-4.6V visual analysis
 verify-stories:
-	@echo "📖 Running Story-Driven Admin Verification..."
-	@echo "   Stories: docs/TESTING/STORIES/*.yml"
-	@echo "   Target:  $(RAILWAY_DEV_FRONTEND_URL)"
-	@mkdir -p artifacts/verification/stories
-	@# List stories and run admin pipeline which covers all story routes
-	@ls -1 docs/TESTING/STORIES/*.yml 2>/dev/null | wc -l | xargs -I{} echo "   Found {} story files"
-	@# Admin pipeline covers all story routes - reuse existing verification
-	@$(MAKE) verify-admin-pipeline
+	@echo "📖 Running Story-Driven Verification (Deep Validity & Persona)..."
+	@echo "   [Logic] Running backend python logic verifiers..."
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		(cd backend && railway run poetry run python scripts/verification/story_runner.py --all) && \
+		(cd backend && railway run poetry run python scripts/verification/visual_story_runner.py --all); \
+	else \
+		(cd backend && poetry run python scripts/verification/story_runner.py --all) && \
+		(cd backend && poetry run python scripts/verification/visual_story_runner.py --all); \
+	fi
 
 # Overnight/CI story verification (runs all stories + generates report)
 verify-stories-overnight:
@@ -369,7 +376,7 @@ endif
 	done
 	@# Run full verification
 	@echo "🚀 Running verify-all against PR environment..."
-	$(MAKE) verify-all API_URL=$(PR_BACKEND_URL) BASE_URL=$(PR_FRONTEND_URL)
+	$(MAKE) verify-all API_URL=$(PR_BACKEND_URL) BASE_URL=$(PR_FRONTEND_URL) FRONTEND_URL=$(PR_FRONTEND_URL)
 	@# Run story-driven verification on PR frontend
 	@echo "📖 Running story verification on PR frontend..."
 	$(MAKE) verify-admin-pipeline FRONTEND_URL=$(PR_FRONTEND_URL)

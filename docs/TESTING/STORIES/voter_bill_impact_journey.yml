@@ -1,0 +1,41 @@
+id: voter_bill_impact_journey
+description: "Educated voter searches for a topic and interprets economic impact data"
+persona: informed_voter
+priority: P1
+timeout_seconds: 120
+goals:
+  - "Verify Search finds relevant legislation by topic"
+  - "Confirm Analysis presents 'Econ 101' impact drivers (Supply/Demand/Cost)"
+  - "Verify 'Bottom Line' summary is easy to locate"
+start_url: "/public/search"
+steps:
+  - id: step-1-topic-search
+    description: |
+      Navigate to public search.
+      Query for "Zoning" or "Density".
+      Verify results list relevant bills.
+    glm_prompt: "Are bills related to 'Zoning' displayed? Describe the result cards."
+    expected: "Relevant bills listed"
+    exploration_budget: 1
+
+  - id: step-2-view-impact-analysis
+    description: |
+      Click a bill to view details.
+      Locate the 'Economic Analysis' section.
+      Verify it uses standard economic terms (Price, Supply, Demand, Cost).
+    glm_prompt: "Is there an 'Economic Analysis' section? Does it mention supply/demand or costs?"
+    expected: "Analysis uses economic framework"
+    exploration_budget: 1
+
+  - id: step-3-check-bottom-line
+    description: |
+      Find the 'Impact Summary' or 'Bottom Line'.
+      It should clearly state: "Increases Cost of Living" or "Neutral".
+      (Should be unambiguous to an educated reader).
+    glm_prompt: "What is the bottom line conclusion? Is it clearly 'Positive', 'Negative', or 'Neutral'?"
+    expected: "Clear directional impact statement"
+    exploration_budget: 1
+
+metadata:
+  tags: ["voter", "search", "impact-clarity"]
+  priority: 2
