@@ -73,11 +73,11 @@ Affordabot adopts this stack (either in-repo or by extracting a shared frontend 
 
 ### Decision A: Design system
 - **Default:** keep MUI to reduce migration lift and regressions.
-- **Alternative:** migrate to shadcn/tailwind/Radix and consider assistant-ui.
+- **Alternative:** migrate to shadcn/tailwind/Radix and consider assistant-ui (or use assistant-ui runtime/transport with MUI wrappers).
 
 Tradeoff:
 - MUI reduces migration cost (short term).
-- assistant-ui/shadcn potentially reduces long-term bespoke chat UX code, but requires re-theming + transport alignment.
+- assistant-ui can reduce long-term bespoke chat UX code, but its “starter” UX is Tailwind/shadcn-oriented; staying on MUI likely requires wrapper work and/or adopting only runtime/transport pieces.
 
 ### Decision B: Backend chat protocol
 - **MVP:** structured JSON only.
@@ -121,6 +121,28 @@ See `docs/bd-affordabot-ahpb/DEXTER_AUDIT.md` for the local Dexter snapshot audi
 - **Default tool-selection model:** `glm-4.5-air`
 - Tool selection is a separate “model role” from synthesis.
 - Tool selection must be schema-grounded (tool registry) and capped (≤5 tools) to reduce regressions.
+
+### Decision J: AI chat UI framework (MVP vs post‑MVP)
+**MVP:** do not adopt a new chat UI framework; render structured responses with existing components (minimize UI regressions).  
+**Post‑MVP evaluation:** choose one of:
+1. Vercel AI SDK hooks (`useChat`, `useObject`) + current UI components.
+2. assistant-ui (either full shadcn/Tailwind adoption *or* assistant-ui runtime/transport + wrappers).
+3. deep-chat (web component) as a drop-in UI layer if we want streaming UI quickly without a design-system migration.
+
+Rationale: the chat UX is not the differentiator; optimize for stability and maintainability. UI framework choice should follow a stable backend message/contract model, not drive it.
+
+### Decision K: ToolSelector (explicit spec)
+We will implement (in `llm-common`) a dedicated ToolSelector layer distinct from synthesis:
+- **File/API:** `llm_common/agents/tool_selector.py` (exported from `llm_common.agents`)
+- **Default model:** `glm-4.5-air` (configurable)
+- **Output:** structured tool-call list (Pydantic model), with hard caps (≤5 calls)
+- **Config:** env vars for model + fallback policy (names to be finalized in `llm-common-cmm.11`)
+
+### Decision L: Tool selection fallback policy (safety-first)
+Fallbacks must be bounded and safe (avoid “select all tools” behavior by default):
+1. Retry once with a configured fallback model.
+2. If still failing: fail closed with a structured error (no “run everything”).
+
 
 ## 5) Big‑Bang Cutover Strategy (minimize regressions)
 
@@ -192,7 +214,7 @@ Epic: `bd-yn9g`
 ### 7.3 Affordabot workstream (migrate to Prime stack)
 Epic: `affordabot-ahpb`
 - `affordabot-ahpb.1` Docs: affordabot migration plan + mirrored spec
-- `affordabot-ahpb.2` Feature: build Prime-stack frontend inside affordabot
+- `affordabot-ahpb.2` Feature: build Prime-stack frontend inside affordabot (**post‑MVP unless SEO/SSR is explicitly not needed**)
 - `affordabot-ahpb.3` Task: align affordabot backend API contract to shared frontend
 - `affordabot-ahpb.4` Regression harness: minimal contract + E2E smoke test
 - `affordabot-ahpb.5` Docs: Dexter audit refresh + rewrite spec updates (this PR)
