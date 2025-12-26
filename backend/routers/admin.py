@@ -104,20 +104,20 @@ async def get_jurisdiction(jurisdiction_id: str, request: Request):
         if not row:
             raise HTTPException(status_code=404, detail=f"Jurisdiction '{jurisdiction_id}' not found")
         
-        # Get related counts
-        jur_id = row["id"]
+        # Get related counts - jur_id is already a UUID from the query, use directly
+        jur_id = row["id"]  # Keep as UUID for DB queries
         # raw_scrapes doesn't have jurisdiction_id directly - join via sources
         bill_count = await db._fetchrow(
             """
             SELECT COUNT(*) as count FROM raw_scrapes rs
             JOIN sources s ON rs.source_id = s.id
-            WHERE s.jurisdiction_id = $1
+            WHERE s.jurisdiction_id = $1::uuid
             """,
-            jur_id
+            str(jur_id)  # Cast to string then DB casts to uuid
         )
         source_count = await db._fetchrow(
-            "SELECT COUNT(*) as count FROM sources WHERE jurisdiction_id = $1",
-            jur_id
+            "SELECT COUNT(*) as count FROM sources WHERE jurisdiction_id = $1::uuid",
+            str(jur_id)
         )
         
         return {
