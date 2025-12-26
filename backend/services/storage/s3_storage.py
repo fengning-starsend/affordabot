@@ -36,7 +36,13 @@ class S3Storage:
         """
         # v2.2: Prioritize public MinIO URL to fix Railway DNS resolution issues.
         internal_url = os.getenv("MINIO_URL", "").replace("http://", "").replace("https://", "")
+        # Check both MINIO_URL_PUBLIC and RAILWAY_SERVICE_BUCKET_URL for public endpoint
         public_url = os.getenv("MINIO_URL_PUBLIC", "").replace("http://", "").replace("https://", "")
+        if not public_url:
+            # Fallback to RAILWAY_SERVICE_BUCKET_URL (automatically set by Railway)
+            railway_bucket_url = os.getenv("RAILWAY_SERVICE_BUCKET_URL", "")
+            if railway_bucket_url:
+                public_url = railway_bucket_url.replace("http://", "").replace("https://", "")
 
         # Use public URL if available, otherwise fall back to internal URL.
         # This resolves DNS issues inside Railway's network where the internal hostname
@@ -169,7 +175,8 @@ class S3Storage:
             raise RuntimeError("MinIO client not initialized")
         
         try:
-            url = self.client.presigned_get_object(self.bucket, path, expires=expiry_seconds)
+            from datetime import timedelta
+            url = self.client.presigned_get_object(self.bucket, path, expires=timedelta(seconds=expiry_seconds))
             logger.info(f"Generated presigned URL for: {path}")
             return url
         except S3Error as e:
