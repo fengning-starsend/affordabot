@@ -106,8 +106,13 @@ async def get_jurisdiction(jurisdiction_id: str, request: Request):
         
         # Get related counts
         jur_id = row["id"]
+        # raw_scrapes doesn't have jurisdiction_id directly - join via sources
         bill_count = await db._fetchrow(
-            "SELECT COUNT(*) as count FROM raw_scrapes WHERE jurisdiction_id = $1",
+            """
+            SELECT COUNT(*) as count FROM raw_scrapes rs
+            JOIN sources s ON rs.source_id = s.id
+            WHERE s.jurisdiction_id = $1
+            """,
             jur_id
         )
         source_count = await db._fetchrow(
