@@ -104,7 +104,7 @@ class PostgresDB:
                 # Update
                 update_query = """
                     UPDATE legislation 
-                    SET title = $1, text = $2, status = $3, updated_at = $4
+                    SET title = $1, text_content = $2, status = $3, updated_at = $4
                     WHERE id = $5
                     RETURNING id
                 """
@@ -118,7 +118,7 @@ class PostgresDB:
             # Insert
             insert_query = """
                 INSERT INTO legislation 
-                (jurisdiction_id, bill_number, title, text, introduced_date, status, raw_html, analysis_status)
+                (jurisdiction_id, bill_number, title, text_content, introduced_date, status, raw_html, analysis_status)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id
             """
@@ -370,7 +370,7 @@ class PostgresDB:
                 SELECT rs.id, rs.source_id, rs.url, rs.data, rs.metadata, rs.content_hash, rs.storage_uri, rs.document_id
                 FROM raw_scrapes rs
                 JOIN sources s ON rs.source_id = s.id
-                WHERE s.jurisdiction_id = (SELECT id FROM jurisdictions WHERE name = $1)
+                WHERE s.jurisdiction_id = (SELECT id::text FROM jurisdictions WHERE name = $1)
                 AND (rs.metadata->>'bill_number')::text = $2
                 ORDER BY rs.created_at DESC
                 LIMIT 1
