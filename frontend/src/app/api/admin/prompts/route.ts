@@ -2,6 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getBackendUrl } from '../../_lib/backendUrl';
 
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+    try {
+        const response = await fetch(`${getBackendUrl()}/admin/prompts`);
+
+        if (!response.ok) {
+            const error = await response.text();
+            return NextResponse.json(
+                { error: 'Failed to fetch prompts', details: error },
+                { status: response.status }
+            );
+        }
+
+        const data = await response.json();
+        return NextResponse.json(data);
+    } catch (error) {
+        console.error('API route error:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
+    }
+}
+
 export async function POST(request: NextRequest) {
     try {
         const BACKEND_URL = getBackendUrl();
