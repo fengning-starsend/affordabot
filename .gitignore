@@ -55,3 +55,8 @@ supabase/supabase/.temp/
 # Verification Artifacts
 backend/artifacts/verification/stories/*.png
 backend/artifacts/verification/stories/*.json
+
+# Generated verification outputs (do not commit)
+artifacts/verification/
+.verify-*.log
+.verify-*.pid
