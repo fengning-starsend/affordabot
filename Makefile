@@ -296,13 +296,16 @@ verify-admin-pipeline: check-verify-env
 verify-stories:
 	@echo "📖 Running Story-Driven Verification (Deep Validity & Persona)..."
 	@echo "   [Logic] Running backend python logic verifiers..."
+	@# Visual stories must target the deployed frontend (Railway dev by default), not localhost.
+	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
+	echo "   Using FRONTEND_URL=$${TARGET_URL}"; \
 	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
 		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
 		(cd backend && railway run poetry run python scripts/verification/story_runner.py --all) && \
-		(cd backend && railway run poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow); \
+		(cd backend && railway run poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow --url "$${TARGET_URL}"); \
 	else \
 		(cd backend && poetry run python scripts/verification/story_runner.py --all) && \
-		(cd backend && poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow); \
+		(cd backend && poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow --url "$${TARGET_URL}"); \
 	fi
 
 # Overnight/CI story verification (runs all stories + generates report)
