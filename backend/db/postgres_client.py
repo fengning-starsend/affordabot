@@ -4,6 +4,7 @@ import json
 import asyncpg
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from urllib.parse import quote
 
 logger = logging.getLogger("postgres_db")
 
@@ -242,11 +243,17 @@ class PostgresDB:
     async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str, url: str = None) -> Optional[str]:
         """Get source ID, creating if it doesn't exist."""
         try:
+            # Railway schema requires sources.url NOT NULL. When upstream doesn't provide one,
+            # synthesize a stable placeholder so ingestion can proceed.
+            if not url:
+                safe_name = quote(name or "unknown", safe="")
+                url = f"unknown://{jurisdiction_id}/{type}/{safe_name}"
+
             # Check by URL if provided (stronger match), otherwise Name
             if url:
-             row = await self._fetchrow("SELECT id FROM sources WHERE url = $1", url)
-             if row:
-                 return str(row['id'])
+                row = await self._fetchrow("SELECT id FROM sources WHERE url = $1", url)
+                if row:
+                    return str(row['id'])
 
             row = await self._fetchrow(
                 "SELECT id FROM sources WHERE jurisdiction_id = $1 AND name = $2",
