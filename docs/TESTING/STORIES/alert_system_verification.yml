@@ -1,0 +1,40 @@
+id: alert_system_verification
+description: "Verify that critical triggers (e.g. P0 High Impact) generate admin alerts"
+persona: admin_operator
+priority: P1
+timeout_seconds: 90
+goals:
+  - "Verify 'High Impact' analysis triggers an alert in the dashboard"
+  - "Confirm alert visibility in Jurisdiction view"
+  - "Test 'Mark as Read' / 'Dismiss' workflow"
+start_url: "/admin/jurisdiction/san-jose"
+steps:
+  - id: step-1-check-alert-presence
+    description: |
+      Navigate to San Jose dashboard.
+      Look for the 'Alerts' widget or notification badge.
+      Verify count matches known active alerts.
+    glm_prompt: "Is there an 'Alerts' section? What is the count?"
+    expected: "Alerts section visible with count"
+    exploration_budget: 1
+
+  - id: step-2-verify-alert-content
+    description: |
+      Inspect the list of alerts.
+      Should show 'New High Impact Bill' or similar urgency.
+      Verify links to the specific bill.
+    glm_prompt: "Read the alert titles. Do they convey urgency (e.g. 'High Impact')?"
+    expected: "Urgent alerts displayed clearly"
+    exploration_budget: 1
+
+  - id: step-3-dismiss-alert
+    description: |
+      Attempt to dismiss or acknowledge an alert.
+      Verify UI updates (count decreases).
+    glm_prompt: "Is there a dismiss/check button? Does clicking it remove the alert?"
+    expected: "Alert dismissal works"
+    exploration_budget: 1
+
+metadata:
+  tags: ["workflow", "alerts", "rigor"]
+  priority: 1

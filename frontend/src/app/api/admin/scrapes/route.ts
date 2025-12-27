@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || process.env.RAILWAY_SERVICE_BACKEND_URL || 'http://localhost:8000';
+import { getBackendUrl } from '../../_lib/backendUrl';
 
 export async function GET(request: NextRequest) {
     try {
+        const BACKEND_URL = getBackendUrl(
+            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
+        );
         const { searchParams } = new URL(request.url);
         const jurisdiction = searchParams.get('jurisdiction');
         const limit = searchParams.get('limit') || '50';

@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || process.env.RAILWAY_SERVICE_BACKEND_URL || 'http://localhost:8000';
+import { getBackendUrl } from '../../_lib/backendUrl';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const response = await fetch(`${BACKEND_URL}/admin/jurisdictions`);
+        const backendUrl = getBackendUrl(
+            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
+        );
+        const response = await fetch(`${backendUrl}/admin/jurisdictions`);
         if (!response.ok) {
             throw new Error(`Backend responded with ${response.status}`);
         }

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || process.env.RAILWAY_SERVICE_BACKEND_URL || 'http://localhost:8000';
+import { getBackendUrl } from '../../_lib/backendUrl';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const response = await fetch(`${BACKEND_URL}/admin/models`);
+        const backendUrl = getBackendUrl(
+            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
+        );
+        const response = await fetch(`${backendUrl}/admin/models`);
 
         if (!response.ok) {
             const error = await response.text();
@@ -22,7 +25,7 @@ export async function GET() {
             {
                 error: 'Internal server error',
                 details: error instanceof Error ? error.message : String(error),
-                backend_url: BACKEND_URL
+                backend_url: getBackendUrl()
             },
             { status: 500 }
         );
@@ -31,6 +34,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
+        const BACKEND_URL = getBackendUrl(
+            request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? undefined
+        );
         const body = await request.json();
 
         const response = await fetch(`${BACKEND_URL}/admin/models`, {

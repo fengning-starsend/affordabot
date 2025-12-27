@@ -4,6 +4,7 @@ import json
 import asyncpg
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from urllib.parse import quote
 
 logger = logging.getLogger("postgres_db")
 
@@ -76,6 +77,15 @@ class PostgresDB:
     async def get_or_create_jurisdiction(self, name: str, type: str) -> Optional[str]:
         """Get jurisdiction ID, creating if it doesn't exist."""
         try:
+            normalized_type = (type or "").strip().lower()
+            if normalized_type == "municipality":
+                normalized_type = "city"
+            if normalized_type not in {"city", "county", "state"}:
+                logger.warning(
+                    f"Unknown jurisdiction type '{type}' for '{name}', defaulting to 'city'"
+                )
+                normalized_type = "city"
+
             # Check if exists
             row = await self._fetchrow("SELECT id FROM jurisdictions WHERE name = $1", name)
             if row:
@@ -84,7 +94,7 @@ class PostgresDB:
             # Create new
             row = await self._fetchrow(
                 "INSERT INTO jurisdictions (name, type) VALUES ($1, $2) RETURNING id",
-                name, type
+                name, normalized_type
             )
             return str(row['id']) if row else None
         except Exception as e:
@@ -104,7 +114,7 @@ class PostgresDB:
                 # Update
                 update_query = """
                     UPDATE legislation 
-                    SET title = $1, text = $2, status = $3, updated_at = $4
+                    SET title = $1, text_content = $2, status = $3, updated_at = $4
                     WHERE id = $5
                     RETURNING id
                 """
@@ -118,7 +128,7 @@ class PostgresDB:
             # Insert
             insert_query = """
                 INSERT INTO legislation 
-                (jurisdiction_id, bill_number, title, text, introduced_date, status, raw_html, analysis_status)
+                (jurisdiction_id, bill_number, title, text_content, introduced_date, status, raw_html, analysis_status)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id
             """
@@ -147,40 +157,39 @@ class PostgresDB:
         """Store impact analysis results."""
         if not self.pool:
             await self.connect()
-            
+
         try:
             async with self.pool.acquire() as conn:
                 async with conn.transaction():
                     # Delete existing
                     await conn.execute("DELETE FROM impacts WHERE legislation_id = $1", legislation_id)
-                    
+
                     # Insert new
                     if impacts:
-                        # Prepare batch insert or loop
                         insert_sql = """
-                            INSERT INTO impacts 
-                            (legislation_id, impact_number, relevant_clause, description, evidence, 
-                             chain_of_causality, confidence_factor, p10, p25, p50, p75, p90)
+                            INSERT INTO impacts
+                            (legislation_id, impact_number, relevant_clause, description, evidence,
+                             chain_of_causality, confidence_score, p10, p25, p50, p75, p90)
                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                         """
                         for impact in impacts:
-                            # evidence list handling: Postgres array or JSONB? 
-                            # Assuming JSONB for flexible schema or text[]
-                            # Using json.dumps for evidence if complex. 
-                            # Given Postgres usage, likely JSONB or TEXT[].
-                            evidence = json.dumps(impact.get("evidence", [])) 
-                            
-                            await conn.execute(insert_sql,
+                            evidence = json.dumps(impact.get("evidence", []))
+                            await conn.execute(
+                                insert_sql,
                                 legislation_id,
                                 impact["impact_number"],
-                                impact["relevant_clause"],
+                                impact.get("relevant_clause"),
                                 impact["impact_description"],
-                                evidence, # Passing as JSON string
+                                evidence,
                                 impact["chain_of_causality"],
-                                impact.get("confidence_score", 0.0),
-                                impact["p10"], impact["p25"], impact["p50"], impact["p75"], impact["p90"]
+                                impact.get("confidence_score", impact.get("confidence_factor", 0.0)),
+                                impact["p10"],
+                                impact["p25"],
+                                impact["p50"],
+                                impact["p75"],
+                                impact["p90"],
                             )
-                    
+
                     # Update status
                     await conn.execute(
                         "UPDATE legislation SET analysis_status = 'completed' WHERE id = $1",
@@ -242,11 +251,17 @@ class PostgresDB:
     async def get_or_create_source(self, jurisdiction_id: str, name: str, type: str, url: str = None) -> Optional[str]:
         """Get source ID, creating if it doesn't exist."""
         try:
+            # Railway schema requires sources.url NOT NULL. When upstream doesn't provide one,
+            # synthesize a stable placeholder so ingestion can proceed.
+            if not url:
+                safe_name = quote(name or "unknown", safe="")
+                url = f"unknown://{jurisdiction_id}/{type}/{safe_name}"
+
             # Check by URL if provided (stronger match), otherwise Name
             if url:
-             row = await self._fetchrow("SELECT id FROM sources WHERE url = $1", url)
-             if row:
-                 return str(row['id'])
+                row = await self._fetchrow("SELECT id FROM sources WHERE url = $1", url)
+                if row:
+                    return str(row['id'])
 
             row = await self._fetchrow(
                 "SELECT id FROM sources WHERE jurisdiction_id = $1 AND name = $2",
@@ -370,7 +385,7 @@ class PostgresDB:
                 SELECT rs.id, rs.source_id, rs.url, rs.data, rs.metadata, rs.content_hash, rs.storage_uri, rs.document_id
                 FROM raw_scrapes rs
                 JOIN sources s ON rs.source_id = s.id
-                WHERE s.jurisdiction_id = (SELECT id FROM jurisdictions WHERE name = $1)
+                WHERE s.jurisdiction_id = (SELECT id::text FROM jurisdictions WHERE name = $1)
                 AND (rs.metadata->>'bill_number')::text = $2
                 ORDER BY rs.created_at DESC
                 LIMIT 1

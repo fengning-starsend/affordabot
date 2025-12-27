@@ -2,7 +2,18 @@
 builder = "RAILPACK"
 # Railpack auto-detects pnpm via packageManager field
 # Frontend has its own lockfile (generated with pnpm install --ignore-workspace)
-watchPatterns = ["frontend/**/*", "pnpm-lock.yaml"]
+# NOTE: Railway evaluates watch patterns relative to the service root in some setups.
+# Include both repo-root and service-root patterns so PR deploys don't silently skip.
+watchPatterns = [
+  "frontend/**/*",
+  "src/**/*",
+  "package.json",
+  "package-lock.json",
+  "next.config.*",
+  "tsconfig.json",
+  "railway.toml",
+  "pnpm-lock.yaml",
+]
 
 [deploy]
 startCommand = "pnpm start"

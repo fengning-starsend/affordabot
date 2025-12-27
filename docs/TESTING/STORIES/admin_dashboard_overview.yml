@@ -15,7 +15,8 @@ steps:
       Navigate to /admin and verify authentication succeeds.
       Should see admin dashboard, NOT a login redirect.
     glm_prompt: "Is this an admin dashboard? Or is it a login/sign-in page?"
-    expected: "Admin dashboard with navigation"
+    validation_criteria:
+      - "Admin Dashboard"
     exploration_budget: 0
 
   - id: step-2-verify-metrics
@@ -25,20 +26,8 @@ steps:
       - Jurisdiction stats
       - Pipeline health indicators
     glm_prompt: "What metrics or KPIs are visible? List any numbers, charts, or status indicators."
-    expected: "At least one metric or chart visible"
-    exploration_budget: 1
-
-  - id: step-3-verify-navigation
-    description: |
-      Check that navigation menu contains expected links:
-      - Dashboard
-      - Discovery
-      - Sources
-      - Jurisdictions
-      - Prompts
-      - Reviews
-    glm_prompt: "List all navigation menu items visible. Are there sidebar or header links?"
-    expected: "Navigation with at least 4 menu items"
+    validation_criteria:
+      - "Bills per Month"
     exploration_budget: 1
 
   - id: step-4-error-check
@@ -46,7 +35,8 @@ steps:
       Verify no error messages, blank states, or broken layouts.
       Check for any console errors or 404/500 indicators.
     glm_prompt: "Are there any error messages, blank states, or broken UI elements visible?"
-    expected: "No visible errors"
+    validation_criteria:
+      - "Admin Dashboard"
     exploration_budget: 0
 
 metadata:

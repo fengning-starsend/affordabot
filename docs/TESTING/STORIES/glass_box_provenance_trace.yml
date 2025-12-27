@@ -1,0 +1,41 @@
+id: glass_box_provenance_trace
+description: "Audit the lineage of an analysis from Raw Data to Final Score (Debug Flow)"
+persona: admin_debugger
+priority: P0
+timeout_seconds: 180
+goals:
+  - "Trace a '0 Impact' result back to its source"
+  - "Verify functionality of 'Audit Log' / 'Trace' view"
+  - "Confirm Prompt and LLM Response are inspectable"
+start_url: "/admin/audits/trace"
+steps:
+  - id: step-1-select-suspicious-result
+    description: |
+      Filter for bills with "Impact Score = 0" and Status = "Processed".
+      Select one bill to audit.
+    glm_prompt: "Are there bills with 0 impact? Select one and describe the 'Trace' button locaton."
+    expected: "List of 0-impact bills available"
+    exploration_budget: 1
+
+  - id: step-2-verify-retrieval-chunks
+    description: |
+      In the Trace view, check the 'Retrieval' stage.
+      Are text chunks listed?
+      If chunks are empty/irrelevant, this explains the 0 score.
+    glm_prompt: "Are text chunks visible in the Retrieval stage? Do they look relevant to the bill?"
+    expected: "Retrieval chunks visible (or explicitly empty)"
+    exploration_budget: 1
+
+  - id: step-3-inspect-prompt-response
+    description: |
+      Expand the 'LLM Reasoning' stage.
+      Verify the full System Prompt is visible.
+      Verify the Raw LLM completion is visible.
+      Check if the LLM explicitly stated 'No economic data found'.
+    glm_prompt: "Is the System Prompt visible? Does the LLM output explain the lack of impact?"
+    expected: "Full transparency of Prompt and Output"
+    exploration_budget: 2
+
+metadata:
+  tags: ["debug", "glass-box", "traceability"]
+  priority: 1

@@ -294,14 +294,16 @@ verify-admin-pipeline: check-verify-env
 # Story-driven verification using docs/TESTING/STORIES/*.yml
 # Validates admin console against user stories with GLM-4.6V visual analysis
 verify-stories:
-	@echo "📖 Running Story-Driven Admin Verification..."
-	@echo "   Stories: docs/TESTING/STORIES/*.yml"
-	@echo "   Target:  $(RAILWAY_DEV_FRONTEND_URL)"
-	@mkdir -p artifacts/verification/stories
-	@# List stories and run admin pipeline which covers all story routes
-	@ls -1 docs/TESTING/STORIES/*.yml 2>/dev/null | wc -l | xargs -I{} echo "   Found {} story files"
-	@# Admin pipeline covers all story routes - reuse existing verification
-	@$(MAKE) verify-admin-pipeline
+	@echo "📖 Running Story-Driven Verification (Deep Validity & Persona)..."
+	@echo "   [Logic] Running backend python logic verifiers..."
+	@if [ -z "$$RAILWAY_PROJECT_NAME" ]; then \
+		echo "🔄 Not in Railway Shell. Wrapping in 'railway run'..."; \
+		(cd backend && railway run poetry run python scripts/verification/story_runner.py --all) && \
+		(cd backend && railway run poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow); \
+	else \
+		(cd backend && poetry run python scripts/verification/story_runner.py --all) && \
+		(cd backend && poetry run python scripts/verification/visual_story_runner.py --all --tags core-flow); \
+	fi
 
 # Overnight/CI story verification (runs all stories + generates report)
 verify-stories-overnight:

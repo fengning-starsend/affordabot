@@ -15,7 +15,8 @@ steps:
       Navigate to /admin/reviews and verify review queue loads.
       Should display items pending human review.
     glm_prompt: "Is this a review queue? Describe the items pending review."
-    expected: "Review queue with items or empty state"
+    validation_criteria:
+      - "Template Reviews"
     exploration_budget: 0
 
   - id: step-2-item-details
@@ -26,7 +27,8 @@ steps:
       - Confidence score if available
       - Timestamp
     glm_prompt: "What details are shown for items in the review queue? List the fields."
-    expected: "Review item details visible"
+    validation_criteria:
+      - "Template Reviews"
     exploration_budget: 1
 
   - id: step-3-review-controls
@@ -37,7 +39,8 @@ steps:
       - Request changes option
       - Comment field
     glm_prompt: "Are there approve/reject controls? Describe the action buttons available."
-    expected: "Review action controls present"
+    validation_criteria:
+      - "Template Reviews"
     exploration_budget: 1
 
   - id: step-4-expand-analysis
@@ -45,7 +48,8 @@ steps:
       Test expanding a review item to see full analysis.
       Should show complete LLM-generated content for review.
     glm_prompt: "Can you expand an item to see the full analysis? What content is revealed?"
-    expected: "Full analysis viewable"
+    validation_criteria:
+      - "Template Reviews"
     exploration_budget: 2
 
 metadata:

@@ -1,0 +1,31 @@
+id: citation_validity_check
+description: "Verify that cited evidence in analysis actually exists in the source text (Anti-Hallucination)"
+persona: policy_auditor
+priority: P0
+timeout_seconds: 120
+goals:
+  - "Verify that 'relevant_clause' excerpts match the Raw Scrape text"
+  - "Confirm evidence links point to valid URLs"
+  - "Fail if analysis hallucinates a clause not present in the bill"
+start_url: "/admin/audits/trace/BILL-TEST-101"
+steps:
+  - id: step-1-capture-citation
+    description: |
+      Open the Analysis Trace or Detail view.
+      Copy the 'Relevant Clause' text for Impact #1.
+    glm_prompt: "What is the text of the first cited clause/excerpt?"
+    expected: "Excerpt text captured"
+    exploration_budget: 1
+
+  - id: step-2-verify-against-raw
+    description: |
+      Navigate to the 'Raw Data' tab.
+      Search for the captured excerpt text.
+      It MUST be present (exact or high-fuzzy match).
+    glm_prompt: "Is the exact excerpt found in the Raw Data view?"
+    expected: "Text found in source document"
+    exploration_budget: 1
+
+metadata:
+  tags: ["safety", "hallucination", "rigor"]
+  priority: 1

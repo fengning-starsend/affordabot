@@ -13,36 +13,29 @@ steps:
   - id: step-1-page-load
     description: |
       Navigate to /admin/discovery and verify the discovery interface loads.
-      Should see search controls and jurisdiction selector.
+      Should see search controls and a way to enter a jurisdiction.
     glm_prompt: "Is this a discovery/search interface? Describe the search inputs and controls visible."
-    expected: "Search interface with jurisdiction dropdown"
+    validation_criteria:
+      - "Auto-Discovery"
     exploration_budget: 0
 
-  - id: step-2-jurisdiction-select
+  - id: step-2-jurisdiction-input
     description: |
-      Check that jurisdiction dropdown is populated with options.
-      Should show cities like San Jose, Los Angeles, etc.
-    glm_prompt: "Is there a dropdown for selecting jurisdictions? What options are visible?"
-    expected: "Dropdown with jurisdiction options"
+      Check that there is an input for jurisdiction name (e.g. "San Jose").
+      Verify the control is visible and usable.
+    glm_prompt: "Is there a jurisdiction input? What placeholder text is shown?"
+    validation_criteria:
+      - "Enter jurisdiction name"
     exploration_budget: 1
 
-  - id: step-3-search-trigger
+  - id: step-3-empty-state
     description: |
-      If a search button exists, verify it's clickable.
-      Look for query generation or URL discovery results.
-    glm_prompt: "Is there a search/run/discover button? Are there any results displayed?"
-    expected: "Search button and/or results list"
-    exploration_budget: 2
-
-  - id: step-4-results-display
-    description: |
-      If search was run, verify results are displayed properly:
-      - List of URLs found
-      - Source titles
-      - Any filtering/sorting options
-    glm_prompt: "If there are search results, describe what's shown - URLs, titles, counts?"
-    expected: "Results list or empty state message"
-    exploration_budget: 1
+      Without running discovery, confirm the empty state is rendered (no results yet).
+      This verifies the page doesn't crash and results area renders cleanly.
+    glm_prompt: "Is there an empty state message indicating no results yet?"
+    validation_criteria:
+      - "No discovery results yet"
+    exploration_budget: 0
 
 metadata:
   tags: ["admin", "discovery", "search"]

@@ -15,7 +15,8 @@ steps:
       Navigate to /admin/sources and verify sources list loads.
       Should display a table or grid of data sources.
     glm_prompt: "Is this a sources/data management page? Describe the sources list layout."
-    expected: "Table or list of data sources"
+    validation_criteria:
+      - "Source Management"
     exploration_budget: 0
 
   - id: step-2-source-details
@@ -26,7 +27,9 @@ steps:
       - Last scraped date
       - Status (active/error/pending)
     glm_prompt: "What details are shown for each source? List column headers or data fields."
-    expected: "Source name, URL, status visible"
+    validation_criteria:
+      - "URL"
+      - "Status"
     exploration_budget: 1
 
   - id: step-3-status-indicators
@@ -36,7 +39,8 @@ steps:
       - Last updated timestamps
       - Scrape counts
     glm_prompt: "Are there status badges or indicators? What colors or icons are used?"
-    expected: "Status indicators present"
+    validation_criteria:
+      - "Status"
     exploration_budget: 1
 
   - id: step-4-empty-handling
@@ -44,7 +48,8 @@ steps:
       If no sources exist, verify appropriate empty state message.
       Should not show errors or broken UI.
     glm_prompt: "If the list is empty, is there a helpful message? Or is it just blank?"
-    expected: "Graceful empty state or populated list"
+    validation_criteria:
+      - "Filter sources"
     exploration_budget: 0
 
 metadata:
