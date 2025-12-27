@@ -283,12 +283,12 @@ RAILWAY_DEV_FRONTEND_URL ?= https://frontend-dev-5093.up.railway.app
 verify-admin-pipeline: check-verify-env
 	@echo "🤖 Running UISmokeAgent Admin Pipeline Verification..."
 	@mkdir -p artifacts/verification/admin_pipeline
-	@# Determine target URL, defaulting if FRONTEND_URL is not set
-	TARGET_URL=$${FRONTEND_URL:-$(RAILWAY_DEV_FRONTEND_URL)}
+	@# Determine target URL from Make vars (preferred), falling back to Railway dev.
+	@TARGET_URL="$(or $(FRONTEND_URL),$(RAILWAY_DEV_FRONTEND_URL))"; \
 	echo "Using FRONTEND_URL=$${TARGET_URL}"; \
 	echo "Auth: TEST_USER_EMAIL=$${TEST_USER_EMAIL:-(not set)}"; \
 	cd backend && $(RUN_CMD) poetry run python scripts/verification/admin_pipeline_agent.py \
-		--url $${TARGET_URL} \
+		--url "$${TARGET_URL}" \
 		--output ../artifacts/verification/admin_pipeline
 
 # Story-driven verification using docs/TESTING/STORIES/*.yml
@@ -323,8 +323,8 @@ verify-admin-pipeline-pr: check-verify-env
 verify-ci: check-verify-env
 	@echo "🔬 Running Unified CI Verification (12 RAG stories)..."
 	@mkdir -p artifacts/verification
-	TARGET_URL=$${FRONTEND_URL:-http://localhost:3000}
-	cd backend && $(RUN_CMD) poetry run python scripts/verification/unified_verify.py --base-url $${TARGET_URL}
+	@TARGET_URL="$(or $(FRONTEND_URL),http://localhost:3000)"; \
+	cd backend && $(RUN_CMD) poetry run python scripts/verification/unified_verify.py --base-url "$${TARGET_URL}"
 
 # ============================================================
 # PR Environment Verification (Railway Preview Environments)
