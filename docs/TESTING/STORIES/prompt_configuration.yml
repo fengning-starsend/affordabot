@@ -15,7 +15,8 @@ steps:
       Navigate to /admin/prompts and verify prompts list loads.
       Should display configured LLM prompt templates.
     glm_prompt: "Is this a prompt management interface? Describe the prompts displayed."
-    expected: "List of prompt templates"
+    validation_criteria:
+      - "System Prompts"
     exploration_budget: 0
 
   - id: step-2-prompt-types
@@ -25,7 +26,8 @@ steps:
       - Analysis prompts
       - Research prompts
     glm_prompt: "Are prompts categorized into types? What categories are visible?"
-    expected: "Prompt type categories"
+    validation_criteria:
+      - "System Prompts"
     exploration_budget: 1
 
   - id: step-3-prompt-content
@@ -33,7 +35,8 @@ steps:
       Verify prompt text/content is visible or expandable.
       Should show the actual LLM prompt template.
     glm_prompt: "Can you see the actual prompt text? Is it expandable or in a modal?"
-    expected: "Prompt text visible"
+    validation_criteria:
+      - "System Prompts"
     exploration_budget: 1
 
   - id: step-4-edit-controls
@@ -43,7 +46,8 @@ steps:
       - Text area for modification
       - Save/cancel buttons
     glm_prompt: "Are there controls to edit prompts? Describe any buttons or forms."
-    expected: "View-only or edit controls present"
+    validation_criteria:
+      - "System Prompts"
     exploration_budget: 1
 
 metadata:

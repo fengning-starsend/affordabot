@@ -77,6 +77,15 @@ class PostgresDB:
     async def get_or_create_jurisdiction(self, name: str, type: str) -> Optional[str]:
         """Get jurisdiction ID, creating if it doesn't exist."""
         try:
+            normalized_type = (type or "").strip().lower()
+            if normalized_type == "municipality":
+                normalized_type = "city"
+            if normalized_type not in {"city", "county", "state"}:
+                logger.warning(
+                    f"Unknown jurisdiction type '{type}' for '{name}', defaulting to 'city'"
+                )
+                normalized_type = "city"
+
             # Check if exists
             row = await self._fetchrow("SELECT id FROM jurisdictions WHERE name = $1", name)
             if row:
@@ -85,7 +94,7 @@ class PostgresDB:
             # Create new
             row = await self._fetchrow(
                 "INSERT INTO jurisdictions (name, type) VALUES ($1, $2) RETURNING id",
-                name, type
+                name, normalized_type
             )
             return str(row['id']) if row else None
         except Exception as e:

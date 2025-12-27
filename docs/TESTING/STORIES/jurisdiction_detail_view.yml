@@ -15,35 +15,32 @@ steps:
       Navigate to /admin/jurisdiction/san-jose and verify page loads.
       Should display San Jose jurisdiction details.
     glm_prompt: "Is this a jurisdiction detail page? What jurisdiction is shown?"
-    expected: "San Jose jurisdiction details"
+    validation_criteria:
+      - "Recent History"
     exploration_budget: 0
 
   - id: step-2-bills-list
     description: |
-      Check that bills or legislation items are listed:
-      - Bill numbers/names
-      - Status (pending, analyzed, etc.)
-      - Dates
-    glm_prompt: "Are there bills or legislation items listed? Describe what's shown."
-    expected: "Bills list or empty state"
+      Check that jurisdiction stats are displayed (e.g. bills analyzed, scrape counts).
+    glm_prompt: "Are there jurisdiction stats cards? What labels and counts are shown?"
+    validation_criteria:
+      - "Bills Analyzed"
     exploration_budget: 1
 
   - id: step-3-analysis-data
     description: |
-      Look for RAG analysis results or impact assessments:
-      - Impact scores
-      - Analysis summaries
-      - Cost of living impacts
-    glm_prompt: "Is there any analysis data, impact scores, or AI-generated content visible?"
-    expected: "Analysis data or placeholder"
+      Look for operational controls (e.g. Run Scraper / Force Rescrape) and health indicators.
+    glm_prompt: "Are there Run Scraper / Force Rescrape controls and a health badge?"
+    validation_criteria:
+      - "Run Scraper"
     exploration_budget: 1
 
   - id: step-4-navigation-to-other
     description: |
-      Test navigation to another jurisdiction (e.g., California state).
-      Verify smooth transition without errors.
-    glm_prompt: "Is there a way to navigate to other jurisdictions? Any dropdown or links?"
-    expected: "Navigation to other jurisdictions available"
+      Verify the global sidebar navigation is present for switching contexts.
+    glm_prompt: "Is the left sidebar visible with other jurisdictions and Admin Console?"
+    validation_criteria:
+      - "Admin Console"
     exploration_budget: 2
 
 metadata:

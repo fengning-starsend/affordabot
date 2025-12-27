@@ -127,6 +127,11 @@ async def main():
     parser = argparse.ArgumentParser(description="Run Visual Stories")
     parser.add_argument("--story", required=False, help="Path to specific YAML story")
     parser.add_argument("--all", action="store_true", help="Run all stories in docs/TESTING/STORIES")
+    parser.add_argument(
+        "--tags",
+        required=False,
+        help="Comma-separated tag filter (matches docs/TESTING/STORIES/*.yml metadata.tags)",
+    )
     parser.add_argument("--url", default=os.environ.get("FRONTEND_URL", "http://localhost:3000"))
     parser.add_argument("--output", default="artifacts/verification/stories")
     args = parser.parse_args()
@@ -146,6 +151,21 @@ async def main():
         docs_root = Path(__file__).parent.parent.parent.parent / "docs" / "TESTING" / "STORIES"
         if docs_root.exists():
             stories_to_run.extend(sorted(docs_root.glob("*.yml")))
+
+    if args.all and args.tags and stories_to_run:
+        tag_filter = {t.strip() for t in str(args.tags).split(",") if t.strip()}
+        if tag_filter:
+            filtered: list[Path] = []
+            for p in stories_to_run:
+                try:
+                    data = yaml.safe_load(p.read_text())
+                    tags = data.get("metadata", {}).get("tags", [])
+                    if isinstance(tags, list) and any(str(t) in tag_filter for t in tags):
+                        filtered.append(p)
+                except Exception:
+                    continue
+            stories_to_run = filtered
+            print(f"🔎 Filtered stories by tags={sorted(tag_filter)} -> {len(stories_to_run)} stories")
 
     if not stories_to_run:
         print("No stories found.")
