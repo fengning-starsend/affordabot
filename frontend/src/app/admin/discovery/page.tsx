@@ -80,6 +80,7 @@ export default function DiscoveryPage() {
 
             <div className="flex gap-4 max-w-xl">
                 <Input
+                    type="text"
                     placeholder="Enter jurisdiction name (e.g. San Jose)"
                     value={jurisdiction}
                     onChange={(e) => setJurisdiction(e.target.value)}

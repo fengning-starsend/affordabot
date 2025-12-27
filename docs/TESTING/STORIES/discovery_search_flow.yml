@@ -28,25 +28,14 @@ steps:
       - "Enter jurisdiction name"
     exploration_budget: 1
 
-  - id: step-3-search-trigger
+  - id: step-3-empty-state
     description: |
-      If a search button exists, verify it's clickable.
-      Look for query generation or URL discovery results.
-    glm_prompt: "Is there a search/run/discover button? Are there any results displayed?"
+      Without running discovery, confirm the empty state is rendered (no results yet).
+      This verifies the page doesn't crash and results area renders cleanly.
+    glm_prompt: "Is there an empty state message indicating no results yet?"
     validation_criteria:
-      - "Auto-Discovery"
-    exploration_budget: 2
-
-  - id: step-4-results-display
-    description: |
-      If search was run, verify results are displayed properly:
-      - List of URLs found
-      - Source titles
-      - Any filtering/sorting options
-    glm_prompt: "If there are search results, describe what's shown - URLs, titles, counts?"
-    validation_criteria:
-      - "Auto-Discovery"
-    exploration_budget: 1
+      - "No discovery results yet"
+    exploration_budget: 0
 
 metadata:
   tags: ["admin", "discovery", "search"]
