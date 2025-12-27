@@ -34,7 +34,7 @@ steps:
       Look for query generation or URL discovery results.
     glm_prompt: "Is there a search/run/discover button? Are there any results displayed?"
     validation_criteria:
-      - "Run Discovery"
+      - "Auto-Discovery"
     exploration_budget: 2
 
   - id: step-4-results-display
