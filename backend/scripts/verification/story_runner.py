@@ -16,12 +16,11 @@ Examples:
 
 import argparse
 import importlib.util
-import os
 import sys
 import yaml
 from pathlib import Path
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 # Determine paths relative to this script
 SCRIPT_DIR = Path(__file__).parent.resolve()
