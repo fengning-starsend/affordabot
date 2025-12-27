@@ -8,7 +8,6 @@ import os
 import sys
 import yaml
 from pathlib import Path
-from typing import List, Dict, Any
 
 from playwright.async_api import async_playwright
 
@@ -125,7 +124,7 @@ async def main():
     stories_to_run = []
     if args.story:
         stories_to_run.append(Path(args.story))
-    elif args.all:
+	    elif args.all:
         # Find all stories in docs/TESTING/STORIES that seem like visual ones?
         # Or just run all and let them succeed?
         # The "Deep Validity" stories are logic based. They might fail if run visually?
@@ -134,10 +133,9 @@ async def main():
         # The 4 new stories are YAMLs. The Deep Validity ones ALSO have YAMLs but logic python scripts.
         # This script runs YAML content visually.
         # For now, let's target the 4 specific ones via glob or names found in docs.
-        stories_dir = Path("../../docs/TESTING/STORIES") # Relative to CWD? No, let's resolve from script loc.
-        docs_root = Path(__file__).parent.parent.parent.parent / "docs" / "TESTING" / "STORIES"
-        if docs_root.exists():
-            for f in docs_root.glob("*.yml"):
+	        docs_root = Path(__file__).parent.parent.parent.parent / "docs" / "TESTING" / "STORIES"
+	        if docs_root.exists():
+	            for f in docs_root.glob("*.yml"):
                 # Filter out Deep Validity ones if they are not meant for visual runner?
                 # Actually, if we run them visually, they might pass too if the UI supports the flow!
                 # But let's verify just the 4 new ones for this task if possible, OR just run them all.
