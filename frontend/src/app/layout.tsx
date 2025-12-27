@@ -9,6 +9,7 @@ import { Sidebar } from "../components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({ subsets: ["latin"] });
+const clerkJSVersion = process.env.NEXT_PUBLIC_CLERK_JS_VERSION ?? "5.117.0";
 
 export const metadata: Metadata = {
   title: "AffordaBot",
@@ -21,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider clerkJSVersion={clerkJSVersion}>
       <html lang="en">
         <body className={inter.className}>
           <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50">
