@@ -16,8 +16,10 @@ export default clerkMiddleware(async (auth, req) => {
     if (isProtected(req)) {
         // Railway PR preview environments are non-production and are primarily for CI verification.
         // Avoid coupling verification runs to Clerk credentials by allowing /admin to load in PR previews.
-        const host = req.headers.get('host') || '';
-        const isRailwayPrPreview = host.includes('-pr-') && host.endsWith('.up.railway.app');
+        const forwardedHostForBypass = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+        const hostForBypass = (forwardedHostForBypass || req.headers.get('host') || '').replace(/:\d+$/, '');
+        const isRailwayPrPreview =
+            hostForBypass.includes('-pr-') && hostForBypass.endsWith('.up.railway.app');
         if (isRailwayPrPreview) {
             return NextResponse.next();
         }
