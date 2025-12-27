@@ -11,7 +11,7 @@ import os
 import sys
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional, List, Any
+from typing import Optional
 
 from playwright.async_api import async_playwright, Page
 
@@ -162,10 +162,6 @@ async def main():
         for step in ADMIN_PIPELINE_STEPS:
             story_steps.append({
                 "id": step.id,
-                "description": f"Navigate to '{step.path}' and verify: {step.glm_prompt}",
-                # The agent uses 'navigate' tool. We need to guide it to navigate.
-                # In the 'prompt' built by UISmokeAgent, it includes 'description'.
-                # We can hint navigation in description:
                 "description": f"Navigate to {step.path}. Goal: {step.description}. Verification: {step.glm_prompt}",
                 "validation_criteria": ["Dashboard", "Admin"] if step.id == "01_dashboard" else [] # Simple text checks
             })
