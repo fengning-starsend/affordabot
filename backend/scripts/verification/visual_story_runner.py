@@ -112,45 +112,32 @@ async def main():
     parser.add_argument("--url", default=os.environ.get("FRONTEND_URL", "http://localhost:3000"))
     parser.add_argument("--output", default="artifacts/verification/stories")
     args = parser.parse_args()
-    
+
     api_key = os.environ.get("ZAI_API_KEY")
     if not api_key:
         print("❌ ZAI_API_KEY required")
         sys.exit(1)
-        
+
     output_path = Path(args.output)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    stories_to_run = []
+    stories_to_run: list[Path] = []
     if args.story:
         stories_to_run.append(Path(args.story))
-	    elif args.all:
-        # Find all stories in docs/TESTING/STORIES that seem like visual ones?
-        # Or just run all and let them succeed?
-        # The "Deep Validity" stories are logic based. They might fail if run visually?
-        # Actually, `story_runner.py` runs Python scripts (Logic). `visual_story_runner.py` runs YAMLs (Visual).
-        # We need to distinguish them.
-        # The 4 new stories are YAMLs. The Deep Validity ones ALSO have YAMLs but logic python scripts.
-        # This script runs YAML content visually.
-        # For now, let's target the 4 specific ones via glob or names found in docs.
-	        docs_root = Path(__file__).parent.parent.parent.parent / "docs" / "TESTING" / "STORIES"
-	        if docs_root.exists():
-	            for f in docs_root.glob("*.yml"):
-                # Filter out Deep Validity ones if they are not meant for visual runner?
-                # Actually, if we run them visually, they might pass too if the UI supports the flow!
-                # But let's verify just the 4 new ones for this task if possible, OR just run them all.
-                # Let's run all .yml files found.
-                stories_to_run.append(f)
-    
+    elif args.all:
+        docs_root = Path(__file__).parent.parent.parent.parent / "docs" / "TESTING" / "STORIES"
+        if docs_root.exists():
+            stories_to_run.extend(sorted(docs_root.glob("*.yml")))
+
     if not stories_to_run:
         print("No stories found.")
         sys.exit(0)
-        
+
     success = True
     for story in stories_to_run:
         if not await run_story_file(story, args.url, output_path, api_key):
             success = False
-            
+
     sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
