@@ -18,16 +18,42 @@ async def _is_authenticated(page: Page) -> bool:
 
 
 async def _has_email_field(page: Page) -> bool:
-    return await page.locator('input[type="email"], input[name="identifier"]').count() > 0
+    return (
+        await page.locator(
+            'input[type="email"], input[name="identifier"], input[autocomplete="email"], input[placeholder*="email" i], input[id*="identifier" i]'
+        ).count()
+        > 0
+    )
 
 
 async def _has_password_field(page: Page) -> bool:
-    return await page.locator('input[type="password"], input[name="password"]').count() > 0
+    return (
+        await page.locator(
+            'input[type="password"], input[name="password"], input[autocomplete="current-password"], input[id*="password" i]'
+        ).count()
+        > 0
+    )
 
 
 async def _click_primary_continue(page: Page) -> None:
-    button = page.get_by_role("button", name=re.compile(r"^(continue|sign in|next)$", re.I))
-    await button.first.click()
+    candidates = [
+        page.get_by_role("button", name=re.compile(r"(continue|sign in|next)", re.I)),
+        page.locator('button[type="submit"]'),
+        page.locator("button").filter(has_text=re.compile(r"(continue|sign in|next)", re.I)),
+    ]
+
+    last_error: Exception | None = None
+    for button in candidates:
+        try:
+            if await button.count() > 0:
+                await button.first.click()
+                return
+        except Exception as e:
+            last_error = e
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("No suitable continue/sign-in button found")
 
 
 async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
@@ -57,14 +83,18 @@ async def clerk_login(page: Page, base_url: str, output_dir: Path) -> bool:
 
     # Clerk often uses a 2-step flow: identifier -> password
     if await _has_email_field(page):
-        await page.locator('input[type="email"], input[name="identifier"]').first.fill(email)
+        await page.locator(
+            'input[type="email"], input[name="identifier"], input[autocomplete="email"], input[placeholder*="email" i], input[id*="identifier" i]'
+        ).first.fill(email)
         await _click_primary_continue(page)
 
     # Wait for password field to appear (or for auth to complete)
     try:
         await page.wait_for_timeout(500)
         if await _has_password_field(page):
-            await page.locator('input[type="password"], input[name="password"]').first.fill(password)
+            await page.locator(
+                'input[type="password"], input[name="password"], input[autocomplete="current-password"], input[id*="password" i]'
+            ).first.fill(password)
             await _click_primary_continue(page)
     except Exception:
         # Continue below with auth check + artifacts
